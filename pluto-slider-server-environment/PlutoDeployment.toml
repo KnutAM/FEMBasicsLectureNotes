@@ -1,0 +1,13 @@
+# [Export]
+# baked_notebookfile = true
+
+[SliderServer]
+port = 8080
+# host = "134.169.6.112"
+host = "0.0.0.0"
+
+# You can also set Pluto's configuration here:
+# [Pluto]
+# [Pluto.compiler]
+# threads = 2
+# See documentation for `Pluto.Configuration` for the full list of options. You need specify the categories within `Pluto.Configuration.Options` (`compiler`, `evaluation`, etc).
