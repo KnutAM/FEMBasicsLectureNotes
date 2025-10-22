@@ -1,0 +1,17 @@
+# /etc/systemd/system/plutosliderserver.service
+[Unit]
+Description=PlutoSliderServer (Julia)
+After=network.target
+
+[Service]
+User=pluto
+Group=pluto
+WorkingDirectory=/home/pluto/sites/FEMBasicsLectureNotes
+ExecStart=/home/pluto/sites/FEMBasicsLectureNotes/systemscripts/run-pluto-slider.sh
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=300
+Environment=HOME=/home/pluto
+
+[Install]
+WantedBy=multi-user.target
