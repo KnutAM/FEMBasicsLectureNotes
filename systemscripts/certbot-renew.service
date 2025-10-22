@@ -1,0 +1,7 @@
+#/etc/systemd/system/certbot-renew.service
+[Unit]
+Description=Renew Let's Encrypt certificates
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/certbot renew --quiet --deploy-hook "systemctl reload nginx"

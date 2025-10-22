@@ -1,0 +1,10 @@
+#/etc/systemd/system/certbot-renew.timer
+[Unit]
+Description=Daily renewal of Let's Encrypt certificates
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+
+[Install]
+WantedBy=timers.target
