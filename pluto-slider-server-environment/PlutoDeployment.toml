@@ -4,7 +4,7 @@
 [SliderServer]
 port = 8080
 # host = "134.169.6.112"
-host = "0.0.0.0"
+host = "127.0.0.1"
 
 # You can also set Pluto's configuration here:
 # [Pluto]
