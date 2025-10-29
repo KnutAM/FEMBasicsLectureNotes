@@ -38,6 +38,7 @@ end
 # ╔═╡ b92cd124-af25-11f0-b55d-45d572d7ae78
 md"""
 # Welcome to FEM Basics (VSM167)
+This material is provided under the MIT License: [license file](https://raw.githubusercontent.com/KnutAM/FEMBasicsLectureNotes/refs/heads/main/LICENSE)
 """
 
 # ╔═╡ 49a9b55e-16ad-4d80-ac5d-cbf18cf717d7
@@ -120,6 +121,7 @@ begin
 		fig = Plt.Figure()
 		title = Plt.Observable(L"title")
 		ax = Plt.Axis(fig[1,1]; xlabel = "ξ", ylabel = "h(ξ)", title)
+		Plt.xlims!(ax, (-1.2, 1.2))
 		ξv = range(-1, 1, 60)
 		color = (Plt.Makie.wong_colors()[1], 0.4)
 		barplot = Plt.barplot!(ax, [NaN], [NaN]; width = [1.0], gap = 0.0, color, strokewidth=2)
