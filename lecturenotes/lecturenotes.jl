@@ -39,7 +39,7 @@ end
 # ╔═╡ b92cd124-af25-11f0-b55d-45d572d7ae78
 md"""
 # Welcome to FEM Basics (VSM167)
-This material is provided under the MIT License: [license file](https://raw.githubusercontent.com/KnutAM/FEMBasicsLectureNotes/refs/heads/main/LICENSE)
+This material is provided under the MIT License: [license file](https://raw.githubusercontent.com/KnutAM/FEMBasicsLectureNotes/refs/heads/main/LICENSE). If you find any errors, please [open an issue on github](https://github.com/KnutAM/FEMBasicsLectureNotes/issues/new), or [send me an email](mailto:knut.andreas.meyer@chalmers.se).
 """
 
 # ╔═╡ 49a9b55e-16ad-4d80-ac5d-cbf18cf717d7
@@ -344,7 +344,7 @@ This means that we can now calculate the reference shape gradients, ``\partial N
 
 For a **linear line element**, the jacobian, ``J``, is given by
 ```math
-J = \frac{\partial \hat{N}_1}{\partial\xi}x_1 + \frac{\partial \hat{N}_1}{\partial\xi}x_2 = \frac{-1}{2}x_1 + \frac{1}{2}x_2 = \frac{1}{2}[x_2 - x_1] = \frac{L_e}{2}
+J = \frac{\partial \hat{N}_1}{\partial\xi}x_1 + \frac{\partial \hat{N}_2}{\partial\xi}x_2 = \frac{-1}{2}x_1 + \frac{1}{2}x_2 = \frac{1}{2}[x_2 - x_1] = \frac{L_e}{2}
 ```
 where ``L_e = x_2 - x_1`` is the element length. Hence, we get with our mapping that 
 ```math
@@ -1100,7 +1100,7 @@ PlutoUI = "~0.7.72"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.12.0"
+julia_version = "1.12.1"
 manifest_format = "2.0"
 project_hash = "3e77b724f1f6ec76c265ca194d0f1c0090a63c93"
 
@@ -2701,7 +2701,7 @@ version = "0.17.4+0"
 [[deps.libblastrampoline_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "8e850b90-86db-534c-a0d3-1478176c7d93"
-version = "5.13.1+1"
+version = "5.15.0+0"
 
 [[deps.libfdk_aac_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
