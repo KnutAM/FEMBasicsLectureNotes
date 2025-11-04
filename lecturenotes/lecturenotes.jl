@@ -44,8 +44,9 @@ This material is provided under the MIT License: [license file](https://raw.gith
 
 # ╔═╡ 49a9b55e-16ad-4d80-ac5d-cbf18cf717d7
 md"""
-## L1a: Approximating functions with shape functions
+## L1: Reference element
 
+### Shape functions
 The Finite Element Method (FEM) is all about approximating the solution to Partial Differential Equations (PDEs) with a linear combination of shape functions, ``\hat{N}_i(\xi)``, i.e.
 ```math
        g(\xi) \approx f(\xi; \underline{a}) = \sum_{i = 1}^{\hat{N}_\mathrm{s}} N_i(\xi) a_i
@@ -97,6 +98,7 @@ f(0; \underline{a}) &= a_3
 
 # ╔═╡ 609a415e-0734-4061-997a-4cfb8b71a12f
 md"""
+### Approximating known functions
 For this first step, we will not consider the solution to a PDE, but simply use a linear combination of shape functions to approximate known functions. Specifically, we want to minimize the error,
 ```math
     E(\underline{a}) = \int_{-1}^{1} \frac{1}{2}\left[f(\xi; \underline{a}) - g(\xi)\right]^2\ \mathrm{d}\xi
@@ -164,7 +166,7 @@ begin
 	])
 	numint_nqpoints_slider = @bind numint_nqpoints Slider(1:8; default = 1, show_value = true)
 	md"""
-	## L1b: Numerical integration (1D)
+	### Numerical integration
 	In order to establish the linear equation system above, we have to integrate over the domain [-1, 1]. While we can do this by hand in many cases, but in general this will be a lot of work and in many more advanced cases not possible. Therefore, we typically employ numerical integration in FEM, specifically Gauss Quadrature. To do that, we approximate an integral as a sum over $N_\mathrm{qp}$ quadrature points,
 	```math
 	\begin{align}
