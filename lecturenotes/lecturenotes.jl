@@ -809,16 +809,16 @@ md"""
 
 # ╔═╡ 080f125a-8003-41e7-b50d-05a4de587301
 md"""
-### Divergence and divergence theorem
+### Divergence
 Consider a vector field, 
 ```math
 \underline{q}(\underline{x}) = \begin{bmatrix} q_1(\underline{x}) \\ q_2(\underline{x}) \end{bmatrix}, \quad \underline{x} = \begin{bmatrix} x_1 \\ x_2 \end{bmatrix}
 ```
-around a body with volume ``V``:
+in a 2D body with thickness ``t``, containing a the blue rectangle with volume ``V = \Delta x_1\ \Delta x_2\ t``:
 """
 
 # ╔═╡ 58c1a7d8-03fb-409d-8589-46d2fa597f82
-md" **TODO:** Add figure showing rectangle inside a complete body, ``\Omega``, to derive: ``\mathrm{div}(\underline{q}) = \partial q_i / \partial x_i``"
+LocalResource(joinpath(@__DIR__, "divergence_body_viapdf.svg"))
 
 # ╔═╡ 8786dc4e-f7f4-4ccc-85f5-5302988c696c
 md"""
@@ -826,24 +826,86 @@ The definition of the divergence of ``\underline{q}`` is
 ```math
 \mathrm{div}(\underline{q}) := \lim_{V\rightarrow 0}\left[ \frac{1}{V} \int_{\Gamma} \underline{q} \cdot \underline{n}\ \mathrm{d}\Gamma \right]
 ```
-**Some derivations...**
+If we consider the surface integral, we have
+```math
+\begin{align}
+\frac{1}{t}\int_{\Gamma} \underline{q} \cdot \underline{n}\ \mathrm{d}\Gamma 
+=& \int_{x_1}^{x_1 + \Delta x_1} \underline{q}(\tilde{x}, x_2) \cdot[-\underline{e}_2]\ \mathrm{d}\tilde{x}
++ \int_{x_1}^{x_1 + \Delta x_1} \underline{q}(\tilde{x}, x_2 + \Delta x_2) \cdot \underline{e}_2\ \mathrm{d}\tilde{x} \\
++& \int_{x_2}^{x_2 + \Delta x_2} \underline{q}(x_1, \tilde{x}) \cdot [-\underline{e}_1]\ \mathrm{d}\tilde{x}
++ \int_{x_2}^{x_2 + \Delta x_2} \underline{q}(x_1 + \Delta x_1, \tilde{x}) \cdot \underline{e}_1\ \mathrm{d}\tilde{x} \\
+=&-\int_{x_1}^{x_1 + \Delta x_1} q_2(\tilde{x}, x_2) \ \mathrm{d}\tilde{x}
++ \int_{x_1}^{x_1 + \Delta x_1} q_2(\tilde{x}, x_2 + \Delta x_2)\ \mathrm{d}\tilde{x} \\
+&- \int_{x_2}^{x_2 + \Delta x_2} q_1(x_1, \tilde{x})\ \mathrm{d}\tilde{x}
++ \int_{x_2}^{x_2 + \Delta x_2} q_1(x_1 + \Delta x_1, \tilde{x})\ \mathrm{d}\tilde{x} \\
+\end{align}
+```
+For a continuous field, ``\underline{q}(\underline{x})``, and ``\Delta x_1`` and ``\Delta x_2`` small, we can use a single quadrature point to calculate the integrals (this can be shown by using e.g. a taylor series expansion), such that we get,
+```math
+\begin{align}
+\frac{1}{t}\int_{\Gamma} \underline{q} \cdot \underline{n}\ \mathrm{d}\Gamma 
+&= \Delta x_1 \left[ q_2(x_1 + \Delta x_1/2, x_2 + \Delta x_2) - q_2(x_1 + \Delta x_1/2, x_2)\right] \\
+&+ \Delta x_2 \left[ q_1(x_1 + \Delta x_1, x_2 + \Delta x_2/2) - q_1(x_1, x_2 + \Delta x_2/2)\right]
+\end{align}
+```
+Divide by ``\Delta x_1\ \Delta x_2``, and let ``\Delta x_1 \rightarrow 0`` and ``\Delta x_2 \rightarrow 0``, such that also ``V = \Delta x_1\ \Delta x_2\ t \rightarrow 0``,
+```math
+\begin{align}
+\lim_{V\rightarrow 0} \frac{1}{V}\int_{\Gamma} \underline{q} \cdot \underline{n}\ \mathrm{d}\Gamma 
+&= \lim_{\Delta x_2 \rightarrow 0} \frac{q_2(x_1, x_2 + \Delta x_2) - q_2(x_1, x_2)}{\Delta x_2}\\ 
+&+ 
+\lim_{\Delta x_1 \rightarrow 0} \frac{q_1(x_1 + \Delta x_1, x_2) - q_1(x_1, x_2)}{\Delta x_1}
+\end{align}
+```
+Upon applying the definition of (partial) derivatives, we then obtain,
 """
 
 # ╔═╡ 5608fe81-9b47-4214-a8ad-0960ca147b27
 md"""
-**TODO:** Use the same ``\Omega``, split into ``\Omega_1`` and ``\Omega_2``, to show that
+### Divergence theorem
+We denote the full body from above ``\Omega``, and its boundary ``\Gamma``. Then, we split this body in two parts, ``\Omega_1`` and ``\Omega_2``, with boundaries ``\Gamma_1`` and ``\Gamma_2``, respectively. These boundaries consist of ``\tilde{\Gamma}_i \subset \Gamma`` (i.e. ``\tilde{\Gamma}_i`` is part of ``\Gamma``), and ``\bar{\Gamma}_i`` which is the cut boundary. We would then like to show that
 ```math
 \int_\Gamma \underline{q}\cdot\underline{n}\ \mathrm{d}\Gamma = \int_{\Gamma_1} \underline{q}\cdot\underline{n}\ \mathrm{d}\Gamma + \int_{\Gamma_2} \underline{q}\cdot\underline{n}\ \mathrm{d}\Gamma
 ```
 """
 
+# ╔═╡ 340f8448-6db6-404f-a7ea-192aa339c286
+LocalResource(joinpath(@__DIR__, "divergencethm_split_viapdf.svg"))
+
+# ╔═╡ d9cdd761-bcb3-461a-b473-ab1e6493a80b
+md"""
+Expanding the integrals, we have 
+```math
+\begin{align}
+\int_{\Gamma_1} \underline{q}\cdot\underline{n}\ \mathrm{d}\Gamma &= \int_{\tilde{\Gamma}_1} \underline{q}\cdot\underline{n}\ \mathrm{d}\Gamma + \int_{\bar{\Gamma}_1} \underline{q}\cdot\underline{n}\ \mathrm{d}\Gamma \\
+\int_{\Gamma_2} \underline{q}\cdot\underline{n}\ \mathrm{d}\Gamma &= \int_{\tilde{\Gamma}_2} \underline{q}\cdot\underline{n}\ \mathrm{d}\Gamma + \int_{\bar{\Gamma}_2} \underline{q}\cdot\underline{n}\ \mathrm{d}\Gamma
+\end{align}
+```
+When we note that the cut boundaries, ``\bar{\Gamma}_1`` and ``\bar{\Gamma}_2``, are equal except that the outward pointing normal vector have opposite direction, i.e. ``\bar{\underline{n}}_1(\underline{x}) = -\bar{\underline{n}}_2(\underline{x})``. Consequently, we get
+```math
+\int_{\bar{\Gamma}_1} \underline{q}\cdot\underline{n}\ \mathrm{d}\Gamma = -\int_{\bar{\Gamma}_2} \underline{q}\cdot\underline{n}\ \mathrm{d}\Gamma
+```
+such that
+```math
+\int_{\Gamma_1} \underline{q}\cdot\underline{n}\ \mathrm{d}\Gamma + \int_{\Gamma_2} \underline{q}\cdot\underline{n}\ \mathrm{d}\Gamma = \int_{\tilde{\Gamma}_1} \underline{q}\cdot\underline{n}\ \mathrm{d}\Gamma + \int_{\tilde{\Gamma}_2} \underline{q}\cdot\underline{n}\ \mathrm{d}\Gamma = \int_\Gamma \underline{q}\cdot\underline{n}\ \mathrm{d}\Gamma
+```
+which is what we wanted to show! 
+"""
+
 # ╔═╡ 33618c32-a221-487c-b1ac-0b4beb347c7d
 md"""
-Now we can show that we can do
+This argument also holds when dividing into arbitrarily many, ``N_\mathrm{V}``, parts, i.e.
 ```math
-\int_\Gamma \underline{q}\cdot\underline{n}\ \mathrm{d}\Gamma = \sum_{i = 1}^{N_V} \left[V_i \left[\frac{1}{V_i} \int_{\Gamma_i} \underline{q}\cdot\underline{n}\ \mathrm{d}\Gamma\right]\right]
+\int_\Gamma \underline{q}\cdot\underline{n}\ \mathrm{d}\Gamma 
+= \sum_{i = 1}^{N_V} \left[\int_{\Gamma_i} \underline{q}\cdot\underline{n}\ \mathrm{d}\Gamma\right]
+= \sum_{i = 1}^{N_V} \left[V_i \left[\frac{1}{V_i} \int_{\Gamma_i} \underline{q}\cdot\underline{n}\ \mathrm{d}\Gamma\right]\right]
 ```
-And dividing the body into infinitely many subvolumes, i.e. letting ``V_i \rightarrow 0``, we get the divergence theorem
+where ``V_i`` is the volume of part ``i``. If we let the size of each part go to zero, ``V_i \rightarrow 0`` (loosely ``V_i \rightarrow \mathrm{d}\Omega \rightarrow 0``), we then have by using the definition of divergence,
+"""
+
+# ╔═╡ ac197737-6f54-4f22-a049-0e268c7ec4db
+md"""
+Which is called the **divergence theorem**.
 """
 
 # ╔═╡ b1999d4a-3111-4203-ab1c-173905f06d80
@@ -864,16 +926,89 @@ This has to hold for any domain, ``\Omega``, so it must hold pointwise, i.e.
 This argument is called *localization*, and holds when we only have volume integrals (i.e. no mixed surface and volume integrals). As for the 1D case, we consider the stationary case for now, such that ``\dot{e} = 0``, and we have 
 """
 
+# ╔═╡ 33c4264d-78bb-4c95-9d27-aa340df03808
+md"""
+As for the 1D case, we will use Fourier's law to model the heat flux, ``q``, given as 
+```math
+\underline{q} = -\underline{\underline{D}}\ \mathrm{grad}(T)
+```
+where ``T`` is the temperature, and ``\underline{\underline{D}}`` the conductivity matrix. The gradient, ``\mathrm{grad}(T)``, is
+```math
+\mathrm{grad}(T) = \begin{bmatrix} \frac{\partial T}{\partial x_1} \\ \frac{\partial T}{\partial x_2} \end{bmatrix}
+```
+in 2D. The conductivity matrix, ``\underline{\underline{D}}``, is a material parameter, and when the material is *isotropic*, such that the conductivity is the same in all directions, we can write this as ``\underline{\underline{D}} = k\ \underline{\underline{I}}``, where ``\underline{\underline{I}}`` is the identity matrix and ``k`` the scalar heat conductivity. 
+"""
+
 # ╔═╡ fccdcef3-3768-47d4-ba0e-ecca7308d356
 md"""
 ### Weak form
+To introduce the weak form, we now do the two steps as before,
+1) Multiply with an arbitrary test function, ``\delta T(\underline{x})``
+2) Integrate over the domain, ``\Omega``
+This yields,
+```math
+\int_\Omega \delta T\ \mathrm{div}(\underline{q})\ \mathrm{d}\Omega = \int_\Omega \delta T\ h\ \mathrm{d}\Omega
+```
+The integration by parts work similar, but a bit more complicated in 2D, we start by considering
+```math
+\begin{align}
+\mathrm{div}(\delta T\ \underline{q}) &= \frac{\partial}{\partial x_1}\left[\delta T\ q_1\right] + \frac{\partial}{\partial x_2}\left[\delta T\ q_2\right] \\
+&=  \frac{\partial \delta T}{\partial x_1}q_1 + \delta T \frac{\partial q_1}{\partial x_1} + \frac{\partial \delta T}{\partial x_2}q_2 + \delta T \frac{\partial q_2}{\partial x_2}\\
+&= \mathrm{grad}(\delta T) \cdot \underline{q} + \delta T\ \mathrm{div}(\underline{q})
+\end{align}
+```
+Now we can insert ``\mathrm{div}(\delta T\ \underline{q})`` in the divergence theorem to obtain,
+"""
 
+# ╔═╡ 02ebd323-03e2-41cb-903f-cb0bf690cfd5
+md"""
+Using this in the weak form, we can transform the left hand side,
+```math
+\int_\Omega \delta T\ \mathrm{div}(\underline{q})\ \mathrm{d}\Omega = \int_\Gamma \delta T\ \underline{q}\cdot\underline{n}\ \mathrm{d}\Gamma - \int_\Omega \mathrm{grad}(\delta T)\cdot \underline{q}\ \mathrm{d}\Omega
+```
+This transforms the integral and introduces a boundary term (similar to integration by parts in 1D), and we get
+```math
+- \int_\Omega \mathrm{grad}(\delta T)\cdot \underline{q}\ \mathrm{d}\Omega = 
+\int_\Omega \delta T\ h\ \mathrm{d}\Omega - 
+\int_\Gamma \delta T\ q_\mathrm{n}\ \mathrm{d}\Gamma
+```
+Here, the boundary flux, ``q_\mathrm{n} := \underline{q}\cdot\underline{n}``, is known for Neumann boundary conditions, and unknown for Dirichlet boundary conditions. 
 """
 
 # ╔═╡ 27087e5b-08fb-4e0e-962c-30999860e238
 md"""
 ### FE form
-
+In the next lectures, we will discuss a lot of the complications when going to 2D (and 3D), but the derivation is very similar to the 1D case: We simply insert the approximations of the test function, ``\delta T(\underline{x})``, and the temperature itself, ``T(\underline{x})``, by using shape functions that are defined for 2D (or 3D) coordinates, ``\underline{x}``,
+```math
+\begin{align}
+\delta T(\underline{x}) &\approx \sum_{i = 1}^{N_\mathrm{s}} N_i(\underline{x}) c_i = N_i(\underline{x}) c_i \\
+T(\underline{x}) &\approx \sum_{i = 1}^{N_\mathrm{s}} N_i(\underline{x}) a_i = N_i(\underline{x}) a_i
+\end{align}
+```
+where the coefficients ``c_i`` are arbitrary and ``a_i`` are the unknowns we are looking for (except those known due to Dirichlet BCs). Inserting this into the weak form, we obtain,
+```math
+- \int_\Omega \mathrm{grad}(N_i(\underline{x}) c_i)\cdot \underline{q}\ \mathrm{d}\Omega = 
+\int_\Omega N_i(\underline{x}) c_i\ h\ \mathrm{d}\Omega - 
+\int_\Gamma N_i(\underline{x}) c_i\ q_\mathrm{n}\ \mathrm{d}\Gamma
+```
+and noting that ``c_i`` doesn't depend on the coordinate, we can move it outside the (spatial) derivatives and integrals, putting everything on one side of the equal sign, to obtain
+```math
+c_i \underbrace{\left[-\int_\Omega \mathrm{grad}(N_i(\underline{x}))\cdot \underline{q}\ \mathrm{d}\Omega - 
+\int_\Omega N_i(\underline{x})\ h\ \mathrm{d}\Omega + 
+\int_\Gamma N_i(\underline{x})\ q_\mathrm{n}\ \mathrm{d}\Gamma \right]}_{r_i} = 0
+```
+Thus we have the form ``c_i r_i = 0``, where ``c_i`` are arbitrary. As before, first we consider ``c_1 = 1``, and all other zero, which gives ``r_1 = 0``. Then ``c_2 = 1`` and all other zero, giving ``r_2 = 0``, and so on, showing that we have ``r_i = 0`` in general, giving the FE form,
+```math
+-\int_\Omega \mathrm{grad}(N_i(\underline{x}))\cdot \underline{q}\ \mathrm{d}\Omega = 
+\int_\Omega N_i(\underline{x})\ h\ \mathrm{d}\Omega - 
+\int_\Gamma N_i(\underline{x})\ q_\mathrm{n}\ \mathrm{d}\Gamma
+```
+Finally, we insert the constitutive relationship - Fourier's law, ``\underline{q} = -\underline{\underline{D}}\ \mathrm{grad}(T(\underline{x})) = - \underline{\underline{D}}\ \mathrm{grad}(N_j(\underline{x}) a_j)``, using that ``a_j`` doesn't depend on the coordinates and can be moved outside (spatial) derivatives and integrals,
+```math
+\underbrace{\int_\Omega \mathrm{grad}(N_i(\underline{x}))^\mathrm{T} \underline{\underline{D}}\ \mathrm{grad}(N_j(\underline{x})) \ \mathrm{d}\Omega}_{K_{ij}}\ a_j = \underbrace{
+\int_\Omega N_i(\underline{x})\ h\ \mathrm{d}\Omega - 
+\int_\Gamma N_i(\underline{x})\ q_\mathrm{n}\ \mathrm{d}\Gamma}_{f_i}
+```
 """
 
 # ╔═╡ d9385605-737f-401b-aba9-5d8d7a18a18c
@@ -964,6 +1099,14 @@ eq(md"""
 ```math
 \mathrm{div}(\underline{q}) = h
 ```""", "heatequationstrong")
+
+# ╔═╡ 64a938b2-6001-4424-84e9-c599020fde0b
+eq(md"""
+   ```math
+   \int_\Omega \mathrm{div}(\delta T\ \underline{q})\ \mathrm{d}\Omega = 
+   \int_\Gamma \delta T\ \underline{q}\cdot\underline{n}\ \mathrm{d}\Gamma = \int_\Omega \mathrm{grad}(\delta T)\cdot \underline{q}\ \mathrm{d}\Omega + \int_\Omega \delta T\ \mathrm{div}(\underline{q})\ \mathrm{d}\Omega
+   ```
+   """, "greengaussthm")
 
 # ╔═╡ 6bfc5b5e-cb6f-4e33-8b86-f99ffa713eb5
 begin
@@ -2810,12 +2953,18 @@ version = "4.1.0+0"
 # ╟─8786dc4e-f7f4-4ccc-85f5-5302988c696c
 # ╟─fe0acbb2-f60d-43d9-8694-f4d6ef2a0025
 # ╟─5608fe81-9b47-4214-a8ad-0960ca147b27
+# ╟─340f8448-6db6-404f-a7ea-192aa339c286
+# ╟─d9cdd761-bcb3-461a-b473-ab1e6493a80b
 # ╟─33618c32-a221-487c-b1ac-0b4beb347c7d
 # ╟─4b7acd47-9515-4325-bfb3-2899f847c26b
+# ╟─ac197737-6f54-4f22-a049-0e268c7ec4db
 # ╟─b1999d4a-3111-4203-ab1c-173905f06d80
 # ╟─c1e878bd-0aac-4f28-a528-75c9ce9e3e4a
-# ╠═fccdcef3-3768-47d4-ba0e-ecca7308d356
-# ╠═27087e5b-08fb-4e0e-962c-30999860e238
+# ╟─33c4264d-78bb-4c95-9d27-aa340df03808
+# ╟─fccdcef3-3768-47d4-ba0e-ecca7308d356
+# ╟─64a938b2-6001-4424-84e9-c599020fde0b
+# ╠═02ebd323-03e2-41cb-903f-cb0bf690cfd5
+# ╟─27087e5b-08fb-4e0e-962c-30999860e238
 # ╟─d9385605-737f-401b-aba9-5d8d7a18a18c
 # ╠═55570b97-a717-4a7c-89c4-a2ae941a8e32
 # ╟─509c3307-b814-4da9-aecc-7adb47f8ec95
