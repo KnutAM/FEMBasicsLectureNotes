@@ -218,6 +218,12 @@ Equipped with the ability to integrate any function numerically, we can now calc
 Solving this problem is the first homework assignment
 """
 
+# ╔═╡ e134610b-dd57-4f67-bc00-b5207288d381
+md"""
+## L2: Introduction to MATLAB
+See notes on Canvas
+"""
+
 # ╔═╡ 4e1b0052-2f20-453e-a259-b3e9f1b62752
 begin
 	parameteric_elem1d_x1_slider = @bind parameteric_elem1d_x1 Slider(0:0.2:2; default = -1.2, show_value = true)
@@ -242,8 +248,6 @@ begin
 	end
 	parametric_elem1d_fig, parametric_elem1d_data = setup_parametric_elem1d_figure();
 	md"""
-	## L2: Introduction to MATLAB
-	See notes on Canvas
 	## L3a: Parametric elements (1D)
 	In order to allow for arbitrary element shapes and coordinates, while retaining the simple description on a fixed **reference shape**, the concept of *parametric elements* is usually employed in finite element analyses. For such elements, the spatial coordinate, ``x``, is described as a function of the reference coordinate, ``\xi``. Specifically, we use shape functions to describe the spatial coordinate with the nodal coordinates, ``x_\alpha``, as coefficients:
 	"""
@@ -312,14 +316,16 @@ where we use the previously introduced equation to calculate the spatial coordin
 # ╔═╡ 6fd9e877-66dc-4a59-8fe2-6d6c9c5af473
 begin
 	function setup_parametric_line_gradient_fig()
-		fig = Plt.Figure()
+		fig = Plt.Figure(size = (700, 500))
 		ax_ref = Plt.Axis(fig[1,1]; xlabel = L"\xi", ylabel = L"\hat{N}(\xi)")
 		Plt.lines!(ax_ref, [-1, 1], [1, 0]; label = L"\hat{N}_1(\xi) = [1-\xi]/2,\ \partial\hat{N}_1/\partial\xi = -1/2")
-		Plt.lines!(ax_ref, [-1, 1], [0, 1]; label = L"\hat{N}_2(\xi) = [1+\xi]/2,\ \partial\hat{N}_2/\partial\xi = 1/2")
+		Plt.lines!(ax_ref, [-1, 1], [0, 1]; label = L"\hat{N}_2(\xi) = [1+\xi]/2,\ \partial\hat{N}_2/\partial\xi = +1/2")
 		Plt.ylims!(ax_ref, -0.1, 1.8)
-		Plt.axislegend(ax_ref; position = :ct)
-		ax_glob = Plt.Axis(fig[2,1]; xlabel = L"x", ylabel = L"N(x)")
-		Plt.xlims!(ax_glob, 0.0, 2.0)
+		Plt.xlims!(ax_ref, -1.1, 1.1)
+		Plt.Legend(fig[1,2], ax_ref; tellheight=false, tellwidth=false)
+		#Plt.axislegend(ax_ref; position = :ct)
+		ax_glob = Plt.Axis(fig[2,1:2]; xlabel = L"x", ylabel = L"N(x)")
+		Plt.xlims!(ax_glob, -0.1, 4.4)
 		Plt.ylims!(ax_glob, -0.1, 1.8)
 		N1_line = Plt.lines!(ax_glob, [0.0, 1.0], [1.0, 0.0]; label = L"N_1(x),\ \partial N_1/\partial x = -1/L_e")
 		N2_line = Plt.lines!(ax_glob, [0.0, 1.0], [0.0, 1.0]; label = L"N_2(x),\ \partial N_2/\partial x = 1/L_e")
@@ -327,7 +333,7 @@ begin
 		return fig, (;N1_line, N2_line)
 	end
 	parametric_line_gradient_fig, parametric_line_gradient_data = setup_parametric_line_gradient_fig();
-	parametric_line_length_slider = @bind parametric_line_length Slider(0.1:0.1:2.0; default = 1, show_value = true)
+	parametric_line_length_slider = @bind parametric_line_length Slider(0.1:0.1:4.0; default = 2, show_value = true)
 md"""
 ### Mapping of gradients
 When solving actual Partial Differential Equations (PDEs), we will also need to get the gradient of a function, ``f(x)``, that we approximate using shape functions, ``g(x) \approx f(x; \underline{a}) = \sum_{i=1}^{N_\mathrm{s}} \hat{N}_i(\xi(x)) a_i``. Specifically, we want to calculate
@@ -336,7 +342,7 @@ When solving actual Partial Differential Equations (PDEs), we will also need to 
 ```
 Since our shape functions, ``\hat{N}(\xi)``, are described as a function of the reference coordinate, ``\xi``, we now need the inverse mapping: ``\xi = \xi(x)`` if we want to calculate the physical coordinate dependent shape function, ``N_i(x) = \hat{N}_i(\xi(x))`` (Notice that we remove the hat, ``\hat{\bullet}``, when denoting the shape function described by the physical coordinates). However, we don't have an explicit function for this inverse mapping, and instead we use
 ```math
-    \underline{\underline{I}} = \frac{\partial x}{\partial x} = \frac{\partial x}{\partial \xi}\frac{\partial \xi}{\partial x} \Rightarrow \frac{\partial \xi}{\partial x} = \left[ \frac{\partial x}{\partial \xi} \right]^{-1} = J^{-1} 
+    1 = \frac{\partial x}{\partial x} = \frac{\partial x}{\partial \xi}\frac{\partial \xi}{\partial x} \Rightarrow \frac{\partial \xi}{\partial x} = \left[ \frac{\partial x}{\partial \xi} \right]^{-1} = J^{-1} 
 ```
 to obtain the derivative, ``\partial \xi/\partial x``. The gradient of a shape function can be calculated as,
 ```math
@@ -898,7 +904,7 @@ This argument also holds when dividing into arbitrarily many, ``N_\mathrm{V}``, 
 ```math
 \int_\Gamma \underline{q}\cdot\underline{n}\ \mathrm{d}\Gamma 
 = \sum_{i = 1}^{N_V} \left[\int_{\Gamma_i} \underline{q}\cdot\underline{n}\ \mathrm{d}\Gamma\right]
-= \sum_{i = 1}^{N_V} \left[V_i \left[\frac{1}{V_i} \int_{\Gamma_i} \underline{q}\cdot\underline{n}\ \mathrm{d}\Gamma\right]\right]
+= \sum_{i = 1}^{N_V} \left[\left[\frac{1}{V_i} \int_{\Gamma_i} \underline{q}\cdot\underline{n}\ \mathrm{d}\Gamma\right]V_i \right]
 ```
 where ``V_i`` is the volume of part ``i``. If we let the size of each part go to zero, ``V_i \rightarrow 0`` (loosely ``V_i \rightarrow \mathrm{d}\Omega \rightarrow 0``), we then have by using the definition of divergence,
 """
@@ -2924,6 +2930,7 @@ version = "4.1.0+0"
 # ╟─88e934f1-2a7f-478c-8876-f7edbfa1088b
 # ╟─1051d025-50fe-4311-94a7-606c46a9e84d
 # ╟─889968e5-2713-4f0d-9b7c-b83a9180f2ae
+# ╟─e134610b-dd57-4f67-bc00-b5207288d381
 # ╟─4e1b0052-2f20-453e-a259-b3e9f1b62752
 # ╟─d8328904-bc46-4c04-a0ff-6bf34bdcdc39
 # ╟─40615160-0e12-4a1c-877a-507d1c7b834b
