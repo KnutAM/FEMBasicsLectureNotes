@@ -500,16 +500,16 @@ In heat equation problems, our primary unknown to solve for is the temperature f
 **Energy cannot be created or destroyed**
 
 
-The second is Fourier's law for thermal transport,
+followed by using Fourier's law for the heat flux,
 ```math
 q = -k \frac{\partial T}{\partial x}
 ```
-stating that the heat flux (energy / (time and surface area)) is proportional (with material constant ``k``) to the negative temperature gradient. This implies that energy goes from hot areas to cold areas, as we can observe e.g. when cooking.
+Fourier's law states that the heat flux, ``q``, (energy / (time and surface area)) is proportional (with material constant ``k``) to the negative temperature gradient. This implies that energy goes from hot areas to cold areas, as we can observe e.g. when cooking.
 
 ### Strong form
 To derive the strong form, we need to put the 1st law of thermodynamics into a formula. To do this, we must first define the following quantities
 
-* Internal energy, ``e``: The stored internal energy depends on the temperature, and in the linear case we have that ``e = \rho c_\mathrm{p} T``, where ``\rho`` is the density (mass/volume) and ``c_\mathrm{p}`` the heat capacity (energy / (mass and temperature)). 
+* Internal energy, ``e``: The stored internal energy per volume depends on the temperature, and in the linear case we have that ``e = \rho c_\mathrm{p} T``, where ``\rho`` is the density (mass/volume) and ``c_\mathrm{p}`` the heat capacity (energy / (mass and temperature)). 
 
 * Heat flux, ``q``: The flow of thermal energy through the material (energy / (time and area))
 
@@ -687,9 +687,9 @@ K_{ij} &= \int_{a}^{b} \frac{\partial N_i}{\partial x}\ k\ \frac{\partial N_j}{\
 f_i &= \int_a^b N_i\ h(x)\ \mathrm{d}x + N_i(a) q(a) - N_i(b) q(b)
 \end{align}
 ```
-Focusing on the matrix ``K_{ij}``, we note that if we split our domain into ``N_e`` elements, with start and endpoints ``a_i`` and ``b_i`` (where ``i`` is the element number), we can equally well evaluate this integral as a sum of the contributions for each element:
+Focusing on the matrix ``K_{ij}``, we note that if we split our domain into ``N_e`` elements, with start and endpoints ``a_e`` and ``b_e`` (where ``e`` is the element number), we can equally well evaluate this integral as a sum of the contributions for each element:
 ```math
-K_{ij} = \int_{a}^{b} \frac{\partial N_i}{\partial x}\ k\ \frac{\partial N_j}{\partial x}\ \mathrm{d}x = \sum_{i = 1}^{N_e} \int_{a_i}^{b_i} \frac{\partial N_i}{\partial x}\ k\ \frac{\partial N_j}{\partial x}\ \mathrm{d}x
+K_{ij} = \int_{a}^{b} \frac{\partial N_i}{\partial x}\ k\ \frac{\partial N_j}{\partial x}\ \mathrm{d}x = \sum_{e = 1}^{N_e} \int_{a_e}^{b_e} \frac{\partial N_i}{\partial x}\ k\ \frac{\partial N_j}{\partial x}\ \mathrm{d}x
 ```
 Before discussing this further, let's discuss the mesh data structure, considering two linear line elements as an example:
 """
@@ -722,8 +722,9 @@ On the global level, we have the node coordinates $x_1$, $x_2$, and $x_3$, with 
 ```math
 N_2(x) = \left\lbrace 
 \begin{matrix} 
-N_2^{(1)}(x) & x \in e_1 \\ 
-N_1^{(2)}(x) & x \in e_2 
+N_2^{(1)}(x) & \text{if }x \in e_1 \\ 
+N_1^{(2)}(x) & \text{if }x \in e_2 \\
+0 & \text{else}
 \end{matrix} \right.
 ```
 Consider when we use the function you have written for the 1D heat equation: `linear_line_heat_element`. This function calculates the *local* stiffness `Ke` and load vector `fe`: 
@@ -777,7 +778,7 @@ In this case, we have two node sets:
 which contain the left and right node number.
 
 #### Neumann BC
-Even in the global numbering, we always have that the shape function corresponding to a specific node is 1 at that node, and all other shape functions are zero.Therefore, if we have Neumann boundary conditions, (known flux), at the right boundary, we want to add the contribution to the global load vector, specifically the contribution
+Even in the global numbering, we always have that the shape function corresponding to a specific node is 1 at that node, and all other shape functions are zero. Therefore, if we have Neumann boundary conditions, (known flux), at the right boundary, we want to add the contribution to the global load vector, specifically the contribution
 ```math
 - N_i(b) q(b)
 ```
@@ -1020,11 +1021,284 @@ Finally, we insert the constitutive relationship - Fourier's law, ``\underline{q
 # ╔═╡ d9385605-737f-401b-aba9-5d8d7a18a18c
 md"""
 ## L7-8: Finite elements in 2D and 3D
+
+"""
+
+# ╔═╡ a658416a-108e-4f2f-9cb1-324e5f2960f7
+md"""
 ### Shape functions
+As for the 1D elements, we define our shape functions on reference elements with a fixed geometry. In 2D, we have 2 different reference elements:
+"""
+
+# ╔═╡ 32c1a2ed-ea2a-469b-936f-1a2b4b3eec90
+LocalResource(joinpath(@__DIR__, "refshapes_2d.svg"))
+
+# ╔═╡ ef71b38b-ec86-41eb-86f2-ea8087038502
+begin
+	fig_triangle_shapefuns, data_triangle_shapefuns = let
+		function add_axis!(fig, nr)
+			Plt.Label(fig[1,nr]; text = L"\hat{N}^{(e)}_{%$nr}", tellwidth = false, fontsize = 28)
+			angle = Plt.Observable(1.125π)
+			ax = Plt.Axis3(fig[2,nr]; xlabel = L"\xi_1", ylabel = L"\xi_2", zlabel = 	L"\hat{N}(\xi\underbar)", azimuth = angle)
+			Plt.limits!(ax, (0, 1), (0, 1), (0, 1))
+			ξ1 = [1, 0, 0, 1]
+			ξ2 = [0, 1, 0, 0]
+			N = zeros(3); N[nr] = 1;
+			Plt.lines!(ax, ξ1, ξ2, zeros(4); linewidth = 2, color = :black)
+			Plt.scatter!(ax, ξ1, ξ2, zeros(4); color = :black)
+			Plt.mesh!(ax, ξ1[1:3], ξ2[1:3], N; alpha = 0.5)
+			return angle
+		end
+		fig = Plt.Figure(size = (800, 300))
+		a1 = add_axis!(fig, 1)
+		a2 = add_axis!(fig, 2)
+		a3 = add_axis!(fig, 3)
+		fig, (a1, a2, a3)
+	end
+	triangle_shapefun_slider = @bind triangle_shapefun_rot Slider(range(0, 2π, 21), default = 1.2π)
+	md"""
+	Here, it is important to separate between a numbered vector, ``\underline{\xi}_i``, and the component of a vector ``\xi_i``! 
+	
+	On this reference shapes, we define the vertex coordinates as well as a numbering of each facet. The facets describe the edges - in 3d the facets would be the faces but we don't consider 3d in this course so for us, facet and edge is equivalent. The facets are used when assembling Neumann BCs later.
+	
+	#### Triangle shape functions
+	The linear triangle shape functions are given as 
+	```math
+	\begin{align}
+	    \hat{N}^e_1(\underline{\xi}) = \xi_1, \quad
+	    \hat{N}^e_2(\underline{\xi}) = \xi_2, \quad
+	    \hat{N}^e_3(\underline{\xi}) = 1 - \xi_1 - \xi_2
+	\end{align}
+	```
+	Rotation: $(triangle_shapefun_slider)
+	"""
+end
+
+# ╔═╡ 986c99b7-81b8-4ceb-9eee-14e2d0d26b34
+let θ = triangle_shapefun_rot
+	for i = 1:3
+		data_triangle_shapefuns[i][] = θ
+	end
+	fig_triangle_shapefuns
+end
+
+# ╔═╡ d40d0648-ea58-47d1-b2b7-77c30005f50a
+md"""
+#### Quadrilateral shape functions
+Similarly, we define the *bilinear* quadrilateral shape functions as,
+```math
+\begin{align}
+    \hat{N}^e_1(\underline{\xi}) = \frac{[1 - \xi_1][1 - \xi_2]}{4}, \quad
+    \hat{N}^e_2(\underline{\xi}) = \frac{[1 + \xi_1][1 - \xi_2]}{4} \\
+    \hat{N}^e_3(\underline{\xi}) = \frac{[1 + \xi_1][1 + \xi_2]}{4}, \quad
+    \hat{N}^e_4(\underline{\xi}) = \frac{[1 - \xi_1][1 + \xi_2]}{4}
+\end{align}
+```
+#### Multiple elements
+When we put these into a mesh, we have the same concept as for the 1D case. For each element, we know its node numbers, e.g. 
+```
+enods = [3, 4, 7] % Element 5
+enods = [4, 8, 7] % Element 6
+```
+In the mesh below, only elements 5 and 6 share node 4 (Note, it is not possible from the figure to know the element numbers). Hence, the *global* shape number 4 is defined as
+```math
+N_4(x) = \left\lbrace \begin{matrix} N_2^{(5)}(x) & e = 5 \\ N_1^{(6)}(x) & e = 6 \\ 0 & \text{else}\end{matrix}\right.
+```
+"""
+
+# ╔═╡ e2f75d06-a29f-4709-a3ca-3dc98cd4f570
+begin
+	cell_2d3x3_selector = @bind cell_2d3x3_type Select(["Triangle", "Quadrilateral"])
+	nodenr_2d3x3_selector = @bind nodenr_2d3x3 Select(collect(1:16); default=4)
+	azimuth_3x3_2d_slider = @bind azimuth_3x3_2d Slider(range(0, 2, 21); default=1.2, show_value=true)
+md"""
+Select cell type: $(cell_2d3x3_selector)
+
+Select shape function from node number: $(nodenr_2d3x3_selector)
+
+Rotation: $(azimuth_3x3_2d_slider) π
+"""
+end
+
+# ╔═╡ ce1d0468-b97a-4ae1-b93c-28cc10acb7d4
+begin
+function setup_3x3_2d_grid(::Type{CT}) where {CT<:Union{Triangle, Quadrilateral}}
+	grid = generate_grid(CT, (3, 3))
+	dh = DofHandler(grid)
+	ip = geometric_interpolation(CT)
+	add!(dh, :u, ip)
+	close!(dh)
+	node_to_dof_mapping = zeros(Int, 16)
+	node_coordinates = Ferrite.get_node_coordinate.((grid,), 1:16)
+
+	for cell in CellIterator(dh)
+		for (node_nr, x_node) in enumerate(node_coordinates)
+			@assert length(getcoordinates(cell)) == length(celldofs(cell))
+			for (x_cell, dofnr) in zip(getcoordinates(cell), celldofs(cell))
+				if x_cell ≈ x_node
+					node_to_dof_mapping[node_nr] = dofnr
+				end
+			end
+		end
+	end
+	
+	return dh, node_to_dof_mapping
+end
+	
+makiepoint(x::Vector, y::Vector, z::Vector) = Plt.Point3f.(x, y, z)
+makiepoint(x::Number, y::Number, z::Number) = makiepoint([x], [y], [z])
+makiepoint(v::Vec{3}) = makiepoint(v...)
+makiepoint() = makiepoint(NaN, NaN, NaN)
+makiepoint(n::Int) = makiepoint((fill!(zeros(n), NaN) for _ in 1:3)...)
+
+function create_empty_plot_and_observables()
+	fig = Plt.Figure()
+	azimuth = Plt.Observable(1.275π)
+	elevation = Plt.Observable(π/8)
+	ax = Plt.Axis3(fig[1,1]; xlabel=L"x_1", ylabel=L"x_2", zlabel=L"N(x)", azimuth, elevation)
+	Plt.limits!(ax, (-1, 1), (-1, 1), (0, 1))
+
+	xv = Plt.Observable([-1.0, 1.0])
+	yv = Plt.Observable([-1.0, 1.0])
+	zv = Plt.Observable([0.0 0.0; 1.0 1.0])
+	
+	Plt.surface!(ax, xv, yv, zv; colorrange=(-1.0, 1.0))
+	
+	cell_edges = Plt.Observable(makiepoint())
+	nodes = Plt.Observable(makiepoint(16))
+	
+	Plt.lines!(ax, cell_edges; color=:black, linewidth = 2)
+	
+	Plt.scatter!(ax, nodes; color=:black, label="Node")
+	Plt.text!(ax, nodes; text=string.(collect(1:16)))
+	Plt.Legend(fig[1,2], ax)
+	observables = Dict(
+		"xv"=>xv, "yv"=>yv, "zv"=>zv, 
+		"cell_edges"=>cell_edges, "nodes"=>nodes,
+		"azimuth" => azimuth, "elevation" => elevation)
+	return fig, observables
+end
+
+function update_observables!(observables, dh, node_to_dof_mapping, nodenr, azimuth, elevation)
+	dofnr = node_to_dof_mapping[nodenr]
+	a = zeros(ndofs(dh)); a[dofnr] = 1.0
+	numpoints = 100
+	xv = collect(range(-1.0, 1.0, numpoints))
+	yv = copy(xv)
+	points = [Vec(x,y) for y in yv for x in xv]
+	ph = PointEvalHandler(dh.grid, points)
+	zv = reshape(evaluate_at_points(ph, dh, a), (numpoints, numpoints))
+	observables["xv"][] = xv
+	observables["yv"][] = yv
+	observables["zv"][] = zv
+	ncellnodes = Ferrite.nnodes_per_cell(dh.grid, 1) + 2
+	cell_edges = makiepoint((ncellnodes) * getncells(dh.grid))
+	
+	for cell in CellIterator(dh)
+		for (i, x_cell) in enumerate(getcoordinates(cell))
+			cell_edges[(cellid(cell) - 1) * ncellnodes + i] = makiepoint(x_cell[1], x_cell[2], a[celldofs(cell)[i]])[1]
+		end
+		cell_edges[cellid(cell) * ncellnodes - 1] = makiepoint(getcoordinates(cell)[1][1], getcoordinates(cell)[1][2], a[celldofs(cell)[1]])[1]
+	end
+	observables["cell_edges"][] = cell_edges
+	
+	ncoords = Ferrite.get_node_coordinate.((dh.grid,), 1:16)
+	anodes = zeros(length(ncoords)); anodes[nodenr] = 1.0
+	observables["nodes"][] = makiepoint(first.(ncoords), last.(ncoords), anodes)
+	observables["azimuth"][] = azimuth
+	observables["elevation"][] = elevation
+	return nothing
+end
+fig_3x3_2d, obs_3x3_2d = create_empty_plot_and_observables();
+end;
+
+# ╔═╡ 76a2f37c-2672-431a-9a33-128681607393
+begin
+	CT = cell_2d3x3_type == "Triangle" ? Triangle : Quadrilateral
+	dh_3x3_2d, node2dof = setup_3x3_2d_grid(CT) 
+	update_observables!(obs_3x3_2d, dh_3x3_2d, node2dof, nodenr_2d3x3, azimuth_3x3_2d*π, π/8);
+	fig_3x3_2d
+end
+
+# ╔═╡ 903164a8-30d5-466f-b399-eb380a895117
+md"""
 ### Parametric elements
-### Numerical integration
-### Mapping of gradients
+As in 1D, we have for the parametric elements that
+```math
+\hat{N}^{e}_i(\underline{\xi}) = N^{e}_i(\underline{x}(\underline{\xi}))
+```
+where the parametric mapping is 
+```math
+\underline{x}(\underline{\xi}) = \sum_{\alpha = 1}^{N_\mathrm{nodes}} \hat{N}^{e}_\alpha(\underline{\xi})\ \underline{x}_\alpha^e
+```
+where ``\underline{x}_\alpha^e`` is the coordinate of local node number ``\alpha`` in element ``e``.
+"""
+
+# ╔═╡ dfe56d4b-13c2-4ad4-ab5e-578f470e4589
+md"""
+#### Numerical integration
+As for 1D, an integration over a 2D reference element, ``\hat{\Omega}``, is approximated by the sum
+```math
+\int_{\hat{\Omega}} h(\underline{\xi})\ \mathrm{d}\Omega \approx \sum_{q = 1}^{N_\mathrm{qp}} h(\underline{\xi}_q) w_q
+```
+where ``\underline{\xi}_q`` and ``w_q`` are the ``q``th tabulated integration point and weight. However, for quadrilaterals, we don't tabulate these values, since they can be derived based on the line quadrature. Specifically, we have
+```math
+\underline{\xi}_q = [\xi_a^{1\mathrm{d}}, \xi_b^{1\mathrm{d}}]^\mathrm{T}, \quad w_q = w_a^{1\mathrm{d}} w_b^{1\mathrm{d}}
+```
+Given a line quadrature rule with ``N_q^{1\mathrm{d}}`` points, we then use all combinations of ``a \in [1, N_q^{1\mathrm{d}}]`` and ``b \in [1, N_q^{1\mathrm{d}}]`` to create ``N_q = \left[N_q^{1\mathrm{d}}\right]^2`` quadrature points and weights for the quadrilateral. 
+
+The final question for the numerical integration, is then how to modify the weights, ``w_q``, to account for the physical geometry of an element. To this end, we consider how an area element in the reference element, ``\mathrm{d}\hat{\Omega} = \mathrm{d}\xi_1\ \mathrm{d}\xi_2``, transforms as we change to the physical element and the area element ``\mathrm{d}\Omega``,
+"""
+
+# ╔═╡ e85161d4-4b28-47d4-a05e-a3c3e34415b5
+LocalResource(joinpath(@__DIR__, "numint_map_2d_viapdf.svg"))
+
+# ╔═╡ fdc596a9-bd9e-45bd-a082-0418bb5b5084
+md"""
+As we see from the physical element, the initial rectangular element ``\mathrm{d}\hat{\Omega}`` is transformed into a parallelogram, with sides ``\underline{v}_1`` and ``\underline{v}_2``. The area is then given by the out of plane component of the cross product, ``\underline{v}_1 \times \underline{v}_2``. Using the Jacobian, ``\underline{\underline{J}}``, we can write the side vectors as
+```math
+\underline{v}_1 = \begin{bmatrix} J_{11} \\ J_{21} \end{bmatrix} \mathrm{d}\xi_1, \quad 
+\underline{v}_2 = \begin{bmatrix} J_{12} \\ J_{22} \end{bmatrix} \mathrm{d}\xi_2
+```
+And the area becomes
+```math
+\mathrm{d}\Omega = \underline{e}_3 \cdot \left[\underline{v}_1 \times \underline{v}_2\right] = \left[J_{11}\ J_{22} - J_{21}\ J_{12}\right]\ \mathrm{d}\xi_1\ \mathrm{d}\xi_2 = \mathrm{det}(\underline{\underline{J}})\ \mathrm{d}\hat{\Omega}
+```
+Based on this, we get the integral transformation
+```math
+\int_{\Omega} h(\underline{x})\ \mathrm{d}\Omega = \int_{\hat{\Omega}} h(\underline{x}(\underline{\xi})) \mathrm{det}(\underline{\underline{J}})\ \mathrm{d}\hat{\Omega}
+```
+Similar to before, we can calculate the Jacobian as 
+```math
+\underline{\underline{J}}(\underline{\xi}) := \frac{\partial \underline{x}}{\partial \underline{\xi}} = \sum_{\alpha = 1}^{N_\mathrm{nodes}} \underline{x}_\alpha \left[\frac{\partial N_\alpha}{\partial \underline{\xi}}\right]^\mathrm{T}
+```
+This becomes a bit more straight-forward using the index notation with summation, where we have 
+```math
+J_{ij}(\underline{\xi}) := \frac{\partial x_i}{\partial \xi_j} = \sum_{\alpha = 1}^{N_\mathrm{nodes}} \left[\underline{x}_\alpha\right]_i \frac{\partial N_\alpha}{\partial \xi_j}
+```
+In `MATLAB`, given the nodal coordinates as a ``[2, N_\mathrm{nodes}]`` matrix and the derivatives of the shape funcstions as a ``[2, N_\mathrm{nodes}]`` matrix, we can calculate the sum as a matrix-matrix multiplication. When implementing the `calculate_jacobian` function, validate that if you use
+```
+coords = [1 0 0; 0 0 0]
+dNdxi = [0 0 0; 1 0 0]
+```
+you get
+```
+J = [0 1; 0 0]
+```
+"""
+
+# ╔═╡ 9aec05ec-d7eb-4ef1-a56f-96a4c2371897
+md"""
+#### Mapping of gradients
+"""
+
+# ╔═╡ 67c6438f-2547-4580-82fe-a3263203e939
+md"""
 ### Dirichlet boundary conditions
+"""
+
+# ╔═╡ a4d60a06-d262-4cd1-aad2-f19dd221b4df
+md"""
 ### Neumann boundary conditions
 """
 
@@ -2973,6 +3247,21 @@ version = "4.1.0+0"
 # ╟─02ebd323-03e2-41cb-903f-cb0bf690cfd5
 # ╟─27087e5b-08fb-4e0e-962c-30999860e238
 # ╟─d9385605-737f-401b-aba9-5d8d7a18a18c
+# ╟─a658416a-108e-4f2f-9cb1-324e5f2960f7
+# ╟─32c1a2ed-ea2a-469b-936f-1a2b4b3eec90
+# ╟─ef71b38b-ec86-41eb-86f2-ea8087038502
+# ╟─986c99b7-81b8-4ceb-9eee-14e2d0d26b34
+# ╟─d40d0648-ea58-47d1-b2b7-77c30005f50a
+# ╟─e2f75d06-a29f-4709-a3ca-3dc98cd4f570
+# ╟─ce1d0468-b97a-4ae1-b93c-28cc10acb7d4
+# ╟─76a2f37c-2672-431a-9a33-128681607393
+# ╟─903164a8-30d5-466f-b399-eb380a895117
+# ╟─dfe56d4b-13c2-4ad4-ab5e-578f470e4589
+# ╟─e85161d4-4b28-47d4-a05e-a3c3e34415b5
+# ╟─fdc596a9-bd9e-45bd-a082-0418bb5b5084
+# ╠═9aec05ec-d7eb-4ef1-a56f-96a4c2371897
+# ╠═67c6438f-2547-4580-82fe-a3263203e939
+# ╠═a4d60a06-d262-4cd1-aad2-f19dd221b4df
 # ╠═55570b97-a717-4a7c-89c4-a2ae941a8e32
 # ╟─509c3307-b814-4da9-aecc-7adb47f8ec95
 # ╠═1f5672bc-28af-4ab7-b159-197ebf1e12a3
