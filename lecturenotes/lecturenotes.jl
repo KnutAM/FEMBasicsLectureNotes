@@ -789,7 +789,7 @@ N_i(b) = \left\lbrace \begin{matrix} 0 & i \neq 3 \\ 1 & i = 3 \end{matrix} \rig
 such that we can simply add this contribution as,
 ```
 right_node = node_sets{"right"};
-f(right_node) = f(right_node) + qb
+f(right_node) = f(right_node) - qb
 ```
 where `qb` is our known boundary flux. 
 
