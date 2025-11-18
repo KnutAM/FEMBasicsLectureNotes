@@ -112,7 +112,7 @@ Resulting in the linear equation system
 ```math
 \begin{align}
     \underline{\underline{K}}\ \underline{a} = \underline{f}, \quad \text{or in index notation}^+, \quad K_{ij} a_j = f_i \\
-    K_{ij} = \left[\int_{-1}^{1} \hat{N}_i(\xi) \hat{N}_j(\xi)\ \mathrm{d}\xi\right], \quad 
+    K_{ij} = \int_{-1}^{1} \hat{N}_i(\xi) \hat{N}_j(\xi)\ \mathrm{d}\xi, \quad 
     f_i = \int_{-1}^{1} \hat{N}_i(\xi) g(\xi)\ \mathrm{d}\xi
 \end{align}
 ```
@@ -213,9 +213,46 @@ end
 md"""
 For *Gauss Quadrature* with a certain number quadrature points, weights and locations have been optimized to integrate an as high order polynomial as possible exact. Notice that the linear function is exact for a single point, whereas already with 2 quadrature points, both the 2nd and 3rd order polynomials are integrated exactly. 3 points are needed for the 4th order polynomial. For the exponential and sinusoidal based functions, we observe that the error rapidly decrease with the number of quadrature points.
 
-Equipped with the ability to integrate any function numerically, we can now calculate the integrals in L1a, to establish ``K_{ij}`` and ``f_i``. Specifically, if we use the `linear_line_reference_shape_values` or `quadratic_line_reference_shape_values` functions in `BasicFEM`, we obtain for a given coordinate ``\xi``, the vector ``\underline{N} = [\hat{N}_1(\xi), \cdots, \hat{N}_{N_\mathrm{s}}(\xi)]``, such that our "function" to integrate to obtain the matrix ``K_{ij}`` becomes `N' * N` in `MATLAB`.
+Equipped with the ability to integrate any function numerically, we can now calculate the integrals in L1a, to establish ``K_{ij}`` and ``f_i``. Specifically, if we use the `linear_line_reference_shape_values` or `quadratic_line_reference_shape_values` functions in `BasicFEM`, we obtain for a given coordinate ``\xi``, the vector ``\underline{N} = [\hat{N}_1(\xi), \cdots, \hat{N}_{N_\mathrm{s}}(\xi)]``.
 
-Solving this problem is the first homework assignment
+So we would like to calculate,
+```math
+    K_{ij} = \int_{-1}^{1} \hat{N}_i(\xi) \hat{N}_j(\xi)\ \mathrm{d}\xi 
+	\quad \text{and} \quad
+    f_i = \int_{-1}^{1} \hat{N}_i(\xi) g(\xi)\ \mathrm{d}\xi
+```
+
+We can then calculate our matrix `Ke` and vector `fe` as (we assume they have been initialized as zeros)
+```
+[weights, points] = line_quadrature(nquadpoints);
+for q = 1:length(weights)
+    xi = points(q);
+    w = weights(q);
+    N = linear_line_reference_shape_values(xi);
+    g_xi = g(xi);
+    for i = 1:size(N, 2)
+        fe(i) = fe(i) + N(i) * g_xi * w;
+        for j = 1:size(N, 2)
+            Ke(i, j) = Ke(i, j) + N(i) * N(j) * w;
+        end
+    end
+end
+```
+However, the nested for-loops are quite slow in `MATLAB`, and by using the vector-operations directly, we can calculate this more efficiently as
+```
+[weights, points] = line_quadrature(nquadpoints);
+for q = 1:length(weights)
+    xi = points(q);
+    w = weights(q);
+    N = linear_line_reference_shape_values(xi);
+    g_xi = g(xi);
+	fe = fe + N' * g(xi) * w;
+	Ke = Ke + N' * N * w;
+end
+```
+which will be much faster. Note that in *compiled* languages (e.g. `c++`, `fortran`, `julia`, etc.), using loops can be equally efficient as these vectorized multiplications. 
+
+These implementations are part of the first week homework tasks. 
 """
 
 # ╔═╡ e134610b-dd57-4f67-bc00-b5207288d381
@@ -1270,13 +1307,13 @@ Based on this, we get the integral transformation
 ```
 Similar to before, we can calculate the Jacobian as 
 ```math
-\underline{\underline{J}}(\underline{\xi}) := \frac{\partial \underline{x}}{\partial \underline{\xi}} = \sum_{\alpha = 1}^{N_\mathrm{nodes}} \underline{x}_\alpha \left[\frac{\partial N_\alpha}{\partial \underline{\xi}}\right]^\mathrm{T}
+\underline{\underline{J}}(\underline{\xi}) := \frac{\partial \underline{x}}{\partial \underline{\xi}} = \sum_{\alpha = 1}^{N_\mathrm{nodes}^e} \underline{x}_\alpha^e \left[\frac{\partial \hat{N}^e_\alpha}{\partial \underline{\xi}}\right]^\mathrm{T}
 ```
 This becomes a bit more straight-forward using the index notation with summation, where we have 
 ```math
-J_{ij}(\underline{\xi}) := \frac{\partial x_i}{\partial \xi_j} = \sum_{\alpha = 1}^{N_\mathrm{nodes}} \left[\underline{x}_\alpha\right]_i \frac{\partial N_\alpha}{\partial \xi_j}
+J_{ij}(\underline{\xi}) := \frac{\partial x_i}{\partial \xi_j} = \sum_{\alpha = 1}^{N_\mathrm{nodes}^e} \left[\underline{x}_\alpha^e\right]_i \frac{\partial \hat{N}^e_\alpha}{\partial \xi_j}
 ```
-In `MATLAB`, given the nodal coordinates as a ``[2, N_\mathrm{nodes}]`` matrix and the derivatives of the shape funcstions as a ``[2, N_\mathrm{nodes}]`` matrix, we can calculate the sum as a matrix-matrix multiplication. When implementing the `calculate_jacobian` function, validate that if you use
+In `MATLAB`, given the nodal coordinates as a ``[2, N_\mathrm{nodes}]`` matrix and the derivatives of the shape functions as a ``[2, N_\mathrm{nodes}]`` matrix, we can calculate the sum as a matrix-matrix multiplication. When implementing the `calculate_jacobian` function, validate that if you use
 ```
 coords = [1 0 0; 0 0 0]
 dNdxi = [0 0 0; 1 0 0]
@@ -1290,16 +1327,210 @@ J = [0 1; 0 0]
 # ╔═╡ 9aec05ec-d7eb-4ef1-a56f-96a4c2371897
 md"""
 #### Mapping of gradients
+As for 1D, we have that
+```math
+N_i(\underline{x}(\underline{\xi})) = \hat{N}_i(\underline{\xi})
+```
+However, this implies that if the geometry of the physical element is different from the reference element,
+```math
+\frac{\partial N_i}{\partial \underline{x}} \neq \frac{\partial \hat{N}_i}{\partial \underline{\xi}}
+```
+Instead, we have to consider the derivative,
+```math
+\frac{\partial N_i}{\partial \underline{\xi}} = \frac{\partial N_i}{\partial \underline{x}} \cdot \frac{\partial \underline{x}}{\partial \underline{\xi}}
+= \frac{\partial N_i}{\partial \underline{x}} \cdot \underline{\underline{J}},
+\quad \text{or in index notation: }\quad 
+\frac{\partial N_i}{\partial \xi_j} = \frac{\partial N_i}{\partial x_k} \frac{\partial x_k}{\partial \xi_j} = \frac{\partial N_i}{\partial x_k} J_{kj}
+```
+Right-multiplying both sides by ``\underline{\underline{J}}^{-1}`` gives
+```math
+\frac{\partial N_i}{\partial \underline{\xi}} \cdot \underline{\underline{J}}^{-1} = 
+\frac{\partial N_i}{\partial \underline{x}},
+\quad \text{or in index notation: }\quad
+\frac{\partial N_i}{\partial \xi_j} J_{jl}^{-1} = \frac{\partial N_i}{\partial x_k} J_{kj} J_{jl}^{-1} = \frac{\partial N_i}{\partial x_l}
+```
+or equivalently
+```math
+\begin{align}
+\frac{\partial N_i}{\partial \underline{x}} &= 
+\underline{\underline{J}}^{-T} \cdot \frac{\partial N_i}{\partial \underline{\xi}}\\
+\frac{\partial N_i}{\partial x_l} &= J_{lj}^{-T} \frac{\partial N_i}{\partial \xi_j} 
+\end{align}
+```
+
+In `MATLAB`, we will store the gradients as (assuming three shape functions) 
+```
+dNdxi = [dN1dxi1, dN2dxi1, dN3dxi1;
+		 dN1dxi2, dN2dxi2, dN3dxi2]
+```
+and
+```
+dNdx = [dN1dx1, dN2dx1, dN3dx1;
+        dN1dx2, dN2dx2, dN3dx2]
+```
+This is "opposite" of the standard matrix if we have ``\partial N_i/\partial x_j``, i.e. the index ``i`` gives the column and ``j`` the row. Therefore, we must calculate the mapping of the ``i``th `MATLAB` as
+```
+dNdx(:, i) = J' \ dNdxi(:, i)
+```
+However, to utilize fast vector-matrix multiplication in `MATLAB`, we can simply do all at once,
+```
+dNdx = J' \ dNdxi
+```
+which is equivalent to 
+```
+for i = 1:size(dNdxi, 2)
+	dNdx(:, i) = J' \ dNdxi(:, i)
+end
+```
+but faster. Note that 
+```
+J' \ dNdxi(:, i) = inv(J') * dNdxi(:, i) = (dNdxi(:, i)' * inv(J))'
+```
+
+!!! note "Index notation"
+    The jacobian ``\underline{\underline{J}} := \partial \underline{x}/\partial \underline{\xi}`` becomes a matrix, whose components are ``J_{ij} = \partial x_i / \partial \xi_j``:
+    ```math
+		\underline{\underline{J}} = \begin{bmatrix} J_{11} & J_{12} \\ J_{21} & J_{22} \end{bmatrix} = 
+		\begin{bmatrix} 
+			\partial x_1/\partial \xi_1 & \partial x_1/\partial \xi_2 \\ 
+			\partial x_2/\partial \xi_1 & \partial x_2/\partial \xi_2 
+		\end{bmatrix}
+	```
+	If we have a collection of vectors, e.g. ``\underline{x}_\alpha``, and would like to denote the index ``i`` of the vector ``\underline{x}_\alpha``, we enclose the vector in brackets before indexing, i.e. ``[\underline{x}_\alpha]_i``
+
 """
 
 # ╔═╡ 67c6438f-2547-4580-82fe-a3263203e939
 md"""
 ### Dirichlet boundary conditions
+The global shape function, ``N_i`` at the node coordinate, ``\underline{x}_j``, is, as in 1D,
+```math
+N_i(\underline{x}_j) = \left\lbrace \begin{matrix} 1 & i = j \\ 0 & \text{else} \end{matrix} \right.
+```
+Check this by considering e.g. node number 4 and manipulate the interactive figure before "Parametric elements". This implies, that when we approximate a function as
+```math
+T(\underline{x}) \approx T_h(\underline{x}) = \sum_{i = 1}^{N_\mathrm{dofs}} N_i(\underline{x}) a_i
+```
+we have that ``T_h(\underline{x}_j) = a_j``. So to prescribe the value at a node, we simply prescribe the value of the unknown with that dof-number, just as we did in 1D! When given a mesh, we can request the node numbers on a boundary by using `node_sets`. 
+We then build up all the constrained dofs into a vector, e.g. `cdofs`, accompagnied by the known values at the constrained dofs, `ac`, such that we can solve for the unknown dof-values, `af`, by doing,
+```
+fdofs = setdiff(1:ndofs, cdofs)
+af = K(fdofs, fdofs) \ (f(fdofs) - K(fdofs, cdofs) * ac);
+```
 """
 
 # ╔═╡ a4d60a06-d262-4cd1-aad2-f19dd221b4df
 md"""
 ### Neumann boundary conditions
+While we saw that Dirichlet BCs were basically equivalent to the 1D case, the Neumann BCs are quite a bit more tricky. Notice that we would like to add the contribution,
+```math
+f_i^\mathrm{NBC} = \int_{\Gamma_\mathrm{NBC}} N_i(x) q_\mathrm{n}(x)\ \mathrm{d}\Gamma
+```
+due to the Neumann BCs on the boundary ``\Gamma_\mathrm{NBC}`` to the load vector ``f_i``. Hence, we need to integrate over the boundary facet: In 2d, this is an edge, and in 3d a face, but we will only consider 2d and edges. 
+
+!!! note "Course curriculum"
+	The following **derivations** of the mapping of the integration weights on the element facets in the following description, is outside the scope of the course curriculum. However, **using** the results of the derivation to correctly apply Neumann boundary conditions is part of the curriculum.
+
+
+To get started, let's remind ourselves about the facets on the reference elements,
+"""
+
+# ╔═╡ 8cc38e33-13f2-47a9-8b33-66ce560fbb3b
+LocalResource(joinpath(@__DIR__, "refshapes_2d.svg"))
+
+# ╔═╡ cad4715c-72ef-452c-bbf4-7bbd6149ef13
+md"""
+When we want to apply a Neumann BC, we will get a list of facets, these are described by a matrix where each column contains the global element number and the local facet number. By using the element number, we can get the coordinates of the current element, and by getting the local facet number, we know how to map the coordinates from a reference line [-1, 1] into the local coordinates in the reference element. For the triangle we have with ``s = [\xi^\mathrm{line} + 1]/2``,
+```math
+\underline{\xi}(\xi^\mathrm{line}) = \left\lbrace \begin{matrix}
+[1 - s,\ s]^\mathrm{T} & f = 1 \\
+[0,\ s]^\mathrm{T} & f = 2 \\
+[s,\ 0]^\mathrm{T} & f = 3 \end{matrix} \right., \quad 
+
+```
+and for the quadrilateral, with ``s = \xi^\mathrm{line}``,
+```math
+\underline{\xi}(\xi^\mathrm{line}) = \left\lbrace \begin{matrix}
+[\phantom{+}s,\ -1]^\mathrm{T} & f = 1 \\
+[\phantom{+}1,\ \phantom{+}s]^\mathrm{T} & f = 2 \\
+[-s,\ \phantom{+}1]^\mathrm{T} & f = 3 \\
+[-1,\ -s]^\mathrm{T} & f = 4 \\
+\end{matrix} \right.
+```
+
+This logic is already provided in
+* `triangle_facet_coords`
+* `quadrilateral_facet_coords`
+
+For 2D, our integral becomes a line integral along the facet (edge), ``\Gamma^f``,
+```math
+\int_{\Gamma^f} N_i(\underline{x}) q_\mathrm{n}(\underline{x})\ \mathrm{d}\Gamma
+```
+We would like to translate this into an integral over a reference line [-1, 1] using ``\xi^\mathrm{line}``. This becomes essentially like integration by substitution, but now we have three "levels" (i.e. two transitions): From reference line to reference element (triangle or quad) coordinates, ``\underline{\xi}(\xi^\mathrm{line})``, and from reference element to physical element, ``\underline{x}(\underline{\xi})``. Using that ``\mathrm{d}\Gamma := |\mathrm{d}\underline{x}|``, we obtain,
+```math
+\begin{align}
+\mathrm{d}\underline{x} &= \frac{\partial\underline{x}}{\partial\underline{\xi}}\cdot\frac{\partial \underline{\xi}}{\partial \xi^\mathrm{line}} \mathrm{d}\xi^\mathrm{line} = \underline{\underline{J}} \cdot \frac{\partial \underline{\xi}}{\partial \xi^\mathrm{line}}\mathrm{d}\xi^\mathrm{line} \\
+\int_{\Gamma^f} h(\underline{x})\ \mathrm{d}\Gamma 
+&%= \int_{-1}^{1} h(\underline{x}(\underline{\xi}(\xi^\mathrm{line}))) \left\vert\frac{\partial \underline{x}}{\partial \underline{\xi}} \cdot \frac{\partial \underline{\xi}}{\partial \xi^\mathrm{line}}\right\vert\ \mathrm{d}\xi^\mathrm{line} =
+= \int_{-1}^{1} h(\underline{x}(\underline{\xi}(\xi^\mathrm{line}))) \left\vert\underline{\underline{J}} \cdot \frac{\partial \underline{\xi}}{\partial \xi^\mathrm{line}}\right\vert\ \mathrm{d}\xi^\mathrm{line}
+\end{align}
+```
+Using the mapping above, we arrive at the following derivatives,
+```math
+\underbrace{\frac{\partial \underline{\xi}}{\partial \xi^\mathrm{line}} = \left\lbrace \begin{matrix}
+[-0.5,\ -0.5]^\mathrm{T} & f = 1 \\
+[\phantom{+}0.0,\ \phantom{+}0.5]^\mathrm{T} & f = 2 \\
+[\phantom{+}0.5,\ \phantom{+}0.0]^\mathrm{T} & f = 3 \end{matrix} \right.}_{\text{Reference Triangle}},
+\quad\quad
+\underbrace{\frac{\partial \underline{\xi}}{\partial \xi^\mathrm{line}}= \left\lbrace \begin{matrix}
+[\phantom{-}1,\ \phantom{-}0]^\mathrm{T} & f = 1 \\
+[\phantom{-}0,\ \phantom{-}1]^\mathrm{T} & f = 2 \\
+[-1,\ \phantom{-}0]^\mathrm{T} & f = 3 \\
+[\phantom{-}0,\ -1]^\mathrm{T} & f = 4 \\
+\end{matrix} \right.}_{\text{Reference Quadrilateral}}
+```
+And we thus have the approximation of the integral,
+```math
+\int_{\Gamma^f} h(\underline{x})\ \mathrm{d}\Gamma \approx \sum_{q=1}^{N_\mathrm{qp}} h(\underline{x}) \left\vert\underline{\underline{J}}(\underline{\xi}(\xi_q^\mathrm{line})) \cdot \frac{\partial \underline{\xi}}{\partial \xi^\mathrm{line}}\right\vert\ w_q^\mathrm{line}
+```
+Actually, 
+```math
+\underline{\underline{J}}(\underline{\xi}(\xi_q^\mathrm{line})) \cdot \frac{\partial \underline{\xi}}{\partial \xi^\mathrm{line}}
+```
+gives the direction of the edge scaled with its local length relative the reference line. In `BasicFEM`, the logic for calculating this is provided, except that this vector is rotated to give the direction of the outwards pointing normal, but the magnitude is the same. The functions 
+* `triangle_facet_weighted_normal`
+* `quadrilateral_facet_weighted_normal`
+give this weighted normal, ``\underline{n}_\mathrm{w}^f``, such that the integration simply becomes
+"""
+
+# ╔═╡ 510466ef-7197-4e08-b915-1a23eb5fd095
+md"""
+which is what should be implemented in e.g. `linear_triangle_heat_neumann` and `bilinear_quadrilateral_heat_neumann`. 
+
+!!! note "What you need to know about Neumann BC for heat equation in 2D" 
+	* How to use Equation [^facetintegration] to implement neumann boundary conditions
+	* Explain the purpose of the factor ``\underline{n}_\mathrm{w}^f`` in this formula
+	* Reason what value ``\vert\underline{n}_\mathrm{w}^f\vert`` should take if ``\underline{\underline{J}}`` is constant (Hint: consider ``\int_{\Gamma^f} \mathrm{d}\Gamma``)
+	* Apply Neumann boundary conditions that you have implemented (described below)
+
+
+"""
+
+# ╔═╡ 87c10954-05f0-4866-ae45-df3fcc103c01
+md"""
+In order to apply Neumann BCs to a mesh, we can do the same as we have done for adding contributions to the force vector from each element, except that we now need to consider each facet (edge) that are part of the boundary where we want to apply the boundary flux. Specifically, we have to loop over each facet in our set
+```
+for i = 1:size(facet_set, 2)
+    element_number = facet_set(1, i);
+    facet_number = facet_set(2, i);
+    enodes = element_nodes(:, element_number);
+    coords = node_coordinates(:, enodes);
+    fe = neumann_routine(qn, coords, facet_number, nquadpoints_neumann);
+    % Assemble fe into global f as usual 
+	% Note that fe has the local numbering of the element
+	% I.e for a triangle, length(fe) = 3, so same logic as for a regular element
+end
+```
 """
 
 # ╔═╡ 55570b97-a717-4a7c-89c4-a2ae941a8e32
@@ -1318,11 +1549,55 @@ See presentations uploaded on Canvas
 # ╔═╡ 1f5672bc-28af-4ab7-b159-197ebf1e12a3
 md"""
 ## L12a: Mechanical equilibrium
+Derive ``\mathrm{div}(\underline{\sigma}) + \underline{b} = 0``
 """
 
 # ╔═╡ f13237a3-1bf4-4ec9-a797-20458df04e52
 md"""
 ## L12b: Linear elasticity
+Hooke's law using the stiffness tensor, ``\underline{\underline{D}}``, in Voigt notation
+```math
+\underline{\sigma} = \underline{\underline{D}}\ \underline{\varepsilon}
+```
+with the strain being
+```math
+\underbrace{\underline{\varepsilon}}_{3\text{D}} = \begin{bmatrix} \varepsilon_{11} \\ \varepsilon_{22} \\ \varepsilon_{33} \\ 2\varepsilon_{23} \\ 2\varepsilon_{13} \\ 2\varepsilon_{12} \end{bmatrix}
+, \quad
+\underbrace{\underline{\varepsilon}}_{2\text{D}} = \begin{bmatrix} \varepsilon_{11} \\ \varepsilon_{22} \\ 2\varepsilon_{12} \end{bmatrix}
+```
+with the components ``\varepsilon_{ij}`` defined as
+```math
+\varepsilon_{ij} = \frac{1}{2}\left[\frac{\partial u_i}{\partial x_j} + \frac{\partial u_j}{\partial x_i}\right]
+```
+
+### 3D case
+```math
+\underline{\underline{D}} = \frac{E}{[1+\nu][1 - 2\nu]} \begin{bmatrix}
+1 - \nu & \nu & \nu & 0 & 0 & 0 \\ 
+\nu & 1 - \nu & \nu & 0 & 0 & 0 \\
+\nu & \nu & 1 - \nu & 0 & 0 & 0 \\
+0 & 0 & 0 & \frac{1 - 2\nu}{2} & 0 & 0 \\
+0 & 0 & 0 & 0 & \frac{1 - 2\nu}{2} & 0 \\
+0 & 0 & 0 & 0 & 0 & \frac{1 - 2\nu}{2}
+\end{bmatrix}
+```
+### Plane strain
+```math
+\underline{\underline{D}} = \frac{E}{[1+\nu][1 - 2\nu]} \begin{bmatrix}
+1 - \nu & \nu  & 0 \\ 
+\nu & 1 - \nu  & 0 \\
+0 & 0 & \frac{1 - 2\nu}{2}
+\end{bmatrix}
+```
+### Plane stress
+```math
+\underline{\underline{D}} = \frac{E}{1-\nu^2} \begin{bmatrix}
+1 & \nu  & 0 \\ 
+\nu & 1  & 0 \\
+0 & 0 & \frac{1 - \nu}{2}
+\end{bmatrix}
+```
+
 """
 
 # ╔═╡ 5f0cf5a1-bd8c-4637-a28d-e4fd134254ab
@@ -1387,6 +1662,13 @@ eq(md"""
    \int_\Gamma \delta T\ \underline{q}\cdot\underline{n}\ \mathrm{d}\Gamma = \int_\Omega \mathrm{grad}(\delta T)\cdot \underline{q}\ \mathrm{d}\Omega + \int_\Omega \delta T\ \mathrm{div}(\underline{q})\ \mathrm{d}\Omega
    ```
    """, "greengaussthm")
+
+# ╔═╡ 70c347f5-f365-434b-a557-15d84b45997c
+eq(md"""
+```math
+\int_{\Gamma^f} h(\underline{x})\ \mathrm{d}\Gamma \approx \sum_{q=1}^{N_\mathrm{qp}} h(\underline{x}) \left\vert\underline{n}_\mathrm{w}^f\right\vert\ w_q^\mathrm{line}
+```
+""", "facetintegration")
 
 # ╔═╡ 6bfc5b5e-cb6f-4e33-8b86-f99ffa713eb5
 begin
@@ -3259,13 +3541,18 @@ version = "4.1.0+0"
 # ╟─dfe56d4b-13c2-4ad4-ab5e-578f470e4589
 # ╟─e85161d4-4b28-47d4-a05e-a3c3e34415b5
 # ╟─fdc596a9-bd9e-45bd-a082-0418bb5b5084
-# ╠═9aec05ec-d7eb-4ef1-a56f-96a4c2371897
-# ╠═67c6438f-2547-4580-82fe-a3263203e939
-# ╠═a4d60a06-d262-4cd1-aad2-f19dd221b4df
+# ╟─9aec05ec-d7eb-4ef1-a56f-96a4c2371897
+# ╟─67c6438f-2547-4580-82fe-a3263203e939
+# ╟─a4d60a06-d262-4cd1-aad2-f19dd221b4df
+# ╟─8cc38e33-13f2-47a9-8b33-66ce560fbb3b
+# ╟─cad4715c-72ef-452c-bbf4-7bbd6149ef13
+# ╟─70c347f5-f365-434b-a557-15d84b45997c
+# ╟─510466ef-7197-4e08-b915-1a23eb5fd095
+# ╟─87c10954-05f0-4866-ae45-df3fcc103c01
 # ╠═55570b97-a717-4a7c-89c4-a2ae941a8e32
 # ╟─509c3307-b814-4da9-aecc-7adb47f8ec95
 # ╠═1f5672bc-28af-4ab7-b159-197ebf1e12a3
-# ╠═f13237a3-1bf4-4ec9-a797-20458df04e52
+# ╟─f13237a3-1bf4-4ec9-a797-20458df04e52
 # ╠═5f0cf5a1-bd8c-4637-a28d-e4fd134254ab
 # ╠═976fbb59-1adf-4e95-84b8-75c7bf302917
 # ╠═f61e8d2d-1842-4ba8-aff8-01f6b9ad9025
