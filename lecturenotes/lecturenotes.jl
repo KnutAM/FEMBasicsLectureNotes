@@ -703,7 +703,7 @@ For the sake of an example with a quadratic line element, we have ``N_\mathrm{s}
 \underline{\underline{K}}_{ff} & \underline{\underline{K}}_{fc} \\
 \underline{\underline{K}}_{cf} & \underline{\underline{K}}_{cc}
 \end{bmatrix}
-\begin{bmatrix} a_f \\ a_c \end{bmatrix} = \begin{bmatrix} f_f \\ f_c \end{bmatrix}
+\begin{bmatrix} \underline{a}_f \\ \underline{a}_c \end{bmatrix} = \begin{bmatrix} \underline{f}_f \\ \underline{f}_c \end{bmatrix}
 ```
 where we in `MATLAB` can obtain these submatrices and vectors as 
 ```
@@ -712,6 +712,39 @@ K_cf = K(cdofs, fdofs); K_cc = K(cdofs, cdofs);
 a_f = a(fdofs); a_c = a(cdofs);
 f_f = f(fdofs); f_c = f(cdofs);
 ```
+"""
+
+# ╔═╡ a004f4bc-1a6a-44f5-810b-58d446f813f4
+md"""
+### Reaction flux on Dirichlet boundaries
+At Dirichlet boundaries, the flux ``q`` is unknown, causing the integral 
+```math
+f_i = \int_a^b N_i\ h(x)\ \mathrm{d}x + N_i(a) q(a) - N_i(b) q(b)
+```
+to be unknown. However, for a node-coordinate ``x_j``, we have
+```math
+N_i(x_j) = \left\lbrace \begin{matrix} 1 & i = j \\ 0 & i \neq j \end{matrix}\right.
+```
+For the boundary with coordinate ``b``, assume we have node number ``n_b``, such that we have
+```math
+f_{n_b} = \int_a^b N_{n_b}\ h(x)\ \mathrm{d}x + \underbrace{N_{n_b}(a) q(a)}_{N_{n_b}(a) = 0} - \underbrace{N_{n_b}(b) q(b)}_{N_{n_b}(b) = 1} 
+= \int_a^b N_{n_b}\ h(x)\ \mathrm{d}x - q(b)
+```
+The flux across the boundary ``b``, is then given as 
+```math
+q(b) = \int_a^b N_{n_b}\ h(x)\ \mathrm{d}x - f_{n_b}
+```
+
+In practice, in `MATLAB`, we solve this as
+```
+[K, f] = calculate_matrix_and_vector(...) % Includes heat source contribution to f
+a = zeros(ndofs, 1);
+a(cdofs) = ac; % Set constrained values
+a(fdofs) = K(fdofs, fdofs) \ (f(fdofs) - K(fdofs, cdofs) * ac); % Solve eq. system
+r = zeros(ndofs, 1);
+r(cdofs) = f(cdofs) - K(cdofs, :) * a; % Calculate reaction fluxes
+```
+Where the reason for putting the reaction forces in `r(cdofs)` with preallocated `r = zeros(ndofs, 1)`, is to be able to get index reaction by the global dof number. 
 """
 
 # ╔═╡ 3a99bad7-8447-435d-ae76-392361ca656d
@@ -835,7 +868,7 @@ Utilizing the same property, that ``N_i(x_j)`` is 1 if ``i = j``, and 0 if ``i \
 ```
 cdofs = node_sets{"left"}
 ac = [12] % Set the temperature on the left side to 12 degrees
-fdofs = setdiff(1:ndofs, cdofs) % All other dofs
+fdofs = setdiff((1:ndofs)', cdofs) % All other dofs
 a = zeros(ndofs, 1)				% Solution vector
 a(cdofs) = ac; 					% Set prescribed values
 % Solve the equation system
@@ -1382,10 +1415,7 @@ for i = 1:size(dNdxi, 2)
 	dNdx(:, i) = J' \ dNdxi(:, i)
 end
 ```
-but faster. Note that 
-```
-J' \ dNdxi(:, i) = inv(J') * dNdxi(:, i) = (dNdxi(:, i)' * inv(J))'
-```
+but faster.
 
 !!! note "Index notation"
     The jacobian ``\underline{\underline{J}} := \partial \underline{x}/\partial \underline{\xi}`` becomes a matrix, whose components are ``J_{ij} = \partial x_i / \partial \xi_j``:
@@ -1414,7 +1444,7 @@ T(\underline{x}) \approx T_h(\underline{x}) = \sum_{i = 1}^{N_\mathrm{dofs}} N_i
 we have that ``T_h(\underline{x}_j) = a_j``. So to prescribe the value at a node, we simply prescribe the value of the unknown with that dof-number, just as we did in 1D! When given a mesh, we can request the node numbers on a boundary by using `node_sets`. 
 We then build up all the constrained dofs into a vector, e.g. `cdofs`, accompagnied by the known values at the constrained dofs, `ac`, such that we can solve for the unknown dof-values, `af`, by doing,
 ```
-fdofs = setdiff(1:ndofs, cdofs)
+fdofs = setdiff((1:ndofs)', cdofs)
 af = K(fdofs, fdofs) \ (f(fdofs) - K(fdofs, cdofs) * ac);
 ```
 """
@@ -1533,9 +1563,218 @@ end
 ```
 """
 
+# ╔═╡ e840274e-902e-4b28-a8bd-96af78380a20
+md"""
+### Reaction flux
+Similar to the 1D case, after solving the equation systems we know ``f_i`` for all ``i``, and we have
+```math
+f_i = \int_\Omega N_i(\underline{x})\ h\ \mathrm{d}\Omega - 
+\int_\Gamma N_i(\underline{x})\ q_\mathrm{n}\ \mathrm{d}\Gamma
+```
+For the following mesh, we have a Dirichlet BC on ``\Gamma_\mathrm{right}``, and want to calculate the flux through this boundary, i.e.
+```math
+q_\mathrm{right} = \int_{\Gamma_\mathrm{right}} q_\mathrm{n}\ \mathrm{d}\Gamma
+```
+"""
+
+# ╔═╡ c21b70de-f36d-4c91-9a29-8204bb0f8cc2
+LocalResource(joinpath(@__DIR__, "reaction_flux_corners.svg"))
+
+# ╔═╡ a471df59-3c75-4cfa-8f19-8612b20c59b0
+md"""
+First, recall that the shape functions fulfill the following property,
+```math
+\sum_{i = 1}^{N_\mathrm{s}} N_i(\underline{x}) = 1 \quad \forall \underline{x}\in\Omega
+```
+Using this property, we then have that
+```math
+q_\mathrm{right} = \int_{\Gamma_\mathrm{right}} q_\mathrm{n}\ \mathrm{d}\Gamma = \sum_{i = 1}^{N_\mathrm{s}} \int_{\Gamma_\mathrm{right}} N_i(\underline{x}) q_\mathrm{n}\ \mathrm{d}\Gamma
+```
+Furthermore, we also have that 
+```math
+N_i(\underline{x}) = 0\ \forall\ \underline{x} \text{ on } \Gamma_{\mathrm{right}} \text{ if } i \notin \mathbb{S}_\mathrm{right} = \lbrace 5,10,15,20,25 \rbrace
+```
+Hence, 
+```math
+q_\mathrm{right} = \sum_{i \in \mathbb{S}_\mathrm{right}} \int_{\Gamma_\mathrm{right}} N_i(\underline{x}) q_\mathrm{n}\ \mathrm{d}\Gamma
+```
+We can now split the calculation of the global vector, ``f_i``, into the different boundaries, ``\Gamma_\mathrm{right}`` and ``\Gamma_\mathrm{other} = \Gamma_\mathrm{top} \cup \Gamma_\mathrm{left} \cup \Gamma_\mathrm{bottom}``, resulting in
+```math
+\begin{align}
+f_i &= \int_\Omega N_i(\underline{x})\ h\ \mathrm{d}\Omega - 
+\int_{\Gamma_\mathrm{other}} N_i(\underline{x})\ q_\mathrm{n}\ \mathrm{d}\Gamma
+- \int_{\Gamma_\mathrm{right}} N_i(\underline{x}) q_\mathrm{n}\ \mathrm{d}\Gamma \\
+\int_{\Gamma_\mathrm{right}} N_i(\underline{x}) q_\mathrm{n}\ \mathrm{d}\Gamma &= 
+\int_\Omega N_i(\underline{x})\ h\ \mathrm{d}\Omega - 
+\int_{\Gamma_\mathrm{other}} N_i(\underline{x})\ q_\mathrm{n}\ \mathrm{d}\Gamma
+- f_i
+\end{align}
+```
+We are only interested in the indices ``i \in \lbrace 5, 10, 15, 20, 25 \rbrace``. Hence, we don't have any contributions from ``\Gamma_\mathrm{left}``. However, the boundaries next to ``\Gamma_\mathrm{right}``: ``\Gamma_\mathrm{top}`` and ``\Gamma_\mathrm{bottom}``, contribute to indices 25 and 5, respectively. So we have
+```math
+\begin{align}
+\int_{\Gamma_\mathrm{right}} N_{25}(\underline{x}) q_\mathrm{n}\ \mathrm{d}\Gamma &= 
+\int_\Omega N_{25}(\underline{x})\ h\ \mathrm{d}\Omega - 
+\int_{\Gamma_\mathrm{top}} N_{25}(\underline{x})\ q_\mathrm{n}\ \mathrm{d}\Gamma
+- f_{25} \\
+\int_{\Gamma_\mathrm{right}} N_i(\underline{x}) q_\mathrm{n}\ \mathrm{d}\Gamma &= 
+\int_\Omega N_i(\underline{x})\ h\ \mathrm{d}\Omega - f_i, \quad i\in\lbrace 10, 15, 20\rbrace \\
+\int_{\Gamma_\mathrm{right}} N_5(\underline{x}) q_\mathrm{n}\ \mathrm{d}\Gamma &= 
+\int_\Omega N_5(\underline{x})\ h\ \mathrm{d}\Omega - 
+\int_{\Gamma_\mathrm{bottom}} N_5(\underline{x})\ q_\mathrm{n}\ \mathrm{d}\Gamma
+- f_5
+\end{align}
+```
+So we can easily calculate the contributions from nodes 10, 15, and 20, since we calculate 
+```math
+f_i^\mathrm{known} = \int_\Omega N_i(\underline{x})\ h\ \mathrm{d}\Omega, \quad i \in \lbrace 10, 15, 20 \rbrace
+```
+during the regular assembly of ``\underline{\underline{K}}`` and ``\underline{f}``. And if we have **Neumann boundary conditions on the neighboring boundaries**, ``\Gamma_\mathrm{top}`` and ``\Gamma_\mathrm{bottom}``, we also calculate the full
+```math
+\begin{align}
+f_5^\mathrm{known} &= \int_\Omega N_5(\underline{x})\ h\ \mathrm{d}\Omega - 
+\int_{\Gamma_\mathrm{bottom}} N_5(\underline{x})\ q_\mathrm{n}\ \mathrm{d}\Gamma\\
+f_{25}^\mathrm{known} &= \int_\Omega N_{25}(\underline{x})\ h\ \mathrm{d}\Omega - 
+\int_{\Gamma_\mathrm{top}} N_{25}(\underline{x})\ q_\mathrm{n}\ \mathrm{d}\Gamma
+\end{align}
+```
+such that the reaction flux becomes
+```math
+q_\mathrm{right} = \sum_{i \in \mathbb{S}_\mathrm{right}} \left[ f_i^\mathrm{known} - f_i \right], \quad \mathbb{S}_\mathrm{right} = \lbrace 5, 10, 15, 20, 25 \rbrace
+```
+In `MATLAB`, if we want to calculate the reaction flux on the boundary with node numbers `rdofs` (in this example, `rdofs = 5:5:25`)
+```
+[K, f_known] = calculate_matrix_and_vector(...) % Add all known contributions, 
+										   		% i.e. except unknown qn
+a(cdofs) = ac; % Set prescribed temperatures
+a(fdofs) = K(fdofs, fdofs) \ (f_known(fdofs) - K(fdofs, cdofs) * ac);
+f(fdofs) = f_known(fdofs)
+f(cdofs) = K(cdofs, :) * a;
+q_right = sum(f_known(rdofs) - f(rdofs));
+```
+"""
+
+# ╔═╡ 11bd2c69-1744-4789-8d0b-62c23ae7b896
+md"""
+However, if we have **Dirichlet boundary conditions on a neighboring boundary**, ``\Gamma_\mathrm{top}`` or ``\Gamma_\mathrm{bottom}``, we **cannot calculate the exact contributions** to the flux across each boundary by using this method. In this case, we can make some guess. For example, if we have a Dirichlet BC on ``\Gamma_\mathrm{bottom}``, we can approximate
+```math
+\begin{align}
+\int_{\Gamma_\mathrm{right}} N_5(\underline{x}) q_\mathrm{n}\ \mathrm{d}\Gamma &= \frac{1}{2}\left[\int_\Omega N_5(\underline{x})\ h\ \mathrm{d}\Omega - f_5 \right]\\ 
+\int_{\Gamma_\mathrm{bottom}} N_5(\underline{x})\ q_\mathrm{n}\ \mathrm{d}\Gamma&= \frac{1}{2}\left[\int_\Omega N_5(\underline{x})\ h\ \mathrm{d}\Omega - f_5 \right]
+\end{align}
+```
+or potentially scale with the edge lengths on either domain. However, note that as we refine the mesh, the contributions to the total reaction force from each element will decrease (proportionally to the element size), such that this error will decrease.
+
+!!! note "Alternative calculation"
+	It is also possible to simply evaluate the integral
+	```math
+		q_\mathrm{right} = \int_{\Gamma_\mathrm{right}} q_\mathrm{n}\ \mathrm{d}\Gamma
+	```
+	By performing the numerical integration over the boundary (similar code as for applying Neumann boundary conditions), and calculating the heat flux from the temperature field as ``q_\mathrm{n} = \underline{q}\cdot\underline{n}`` with ``\underline{q} = -\underline{\underline{D}}\ \mathrm{grad}(T) \approx -\underline{\underline{D}}\ \mathrm{grad}(N_i) a_i``, given the solution ``a_i``. While this will converge to the correct solution as we refine the mesh, for coarser meshes it can lead to rather large errors in the boundary flux.
+
+"""
+
 # ╔═╡ 55570b97-a717-4a7c-89c4-a2ae941a8e32
 md"""
 ## L9: Transient heat flow
+So far, we only considered the stationary energy balance, i.e. when ``\dot{e} = 0``. 
+### Strong form 
+If we want to consider how the temperature changes with time, we need to consider the change in internal energy with time, and consider the complete strong form,
+```math
+\dot{e} = h - \mathrm{div}(\underline{q})
+```
+In the linear theory, we will assume that the internal energy is proportional to the temperature, i.e. 
+```math
+e(T) = \rho c_\mathrm{p} [T - T_\mathrm{ref}] + e_\mathrm{ref}
+```
+where ``\rho`` is the material density, ``c_\mathrm{p}`` is the heat capacity (per mass at constant pressure), ``T_\mathrm{ref}`` the temperature at which the internal energy is ``e_\mathrm{ref}``. Inserting this into our strong form, yields,
+```math
+\rho c_\mathrm{p} \dot{T} = h - \mathrm{div}(\underline{q})
+```
+"""
+
+# ╔═╡ af3043ce-2863-44d1-8e7e-db5465651c52
+md"""
+### Weak form
+From hereon, we simplify perform the same steps as before, i.e. we get the weak form as
+```math
+\int_\Omega \delta T \rho c_\mathrm{p} \dot{T}\ \mathrm{d}\Omega = \int_\Omega \delta T h\ \mathrm{d}\Omega - \int_\Omega \delta T \mathrm{div}(\underline{q})\ \mathrm{d}\Omega, \quad \forall\ \delta T(\underline{x})
+```
+with the arbitrary test function ``\delta T(\underline{x})``. We then use the divergence theorem, exactly as before,
+```math
+\int_\Omega \delta T \mathrm{div}(\underline{q})\ \mathrm{d}\Omega = \int_\Gamma \delta T\ \underline{q}\cdot\underline{n}\ \mathrm{d}\Gamma - \int_\Omega \mathrm{grad}(\delta T)\cdot \underline{q}\ \mathrm{d}\Omega
+```
+To obtain the final weak form including the Neumann boundary conditions as,
+```math
+ \int_\Omega \delta T \rho c_\mathrm{p} \dot{T}\ \mathrm{d}\Omega - \int_\Omega \mathrm{grad}(\delta T)\cdot \underline{q}\ \mathrm{d}\Omega = 
+\int_\Omega \delta T\ h\ \mathrm{d}\Omega - 
+\int_\Gamma \delta T\ q_\mathrm{n}\ \mathrm{d}\Gamma
+```
+"""
+
+# ╔═╡ ef099aa1-dd65-468e-af83-632ef4e0b535
+md"""
+### FE form
+The difference from before, is that we now are looking for the function ``T(\underline{x}, t)``, i.e. that the temperature is a function of both the coordinate, ``\underline{x}``, and the time, ``t``. We introduce the approximations
+```math
+\begin{align}
+\delta T(\underline{x}) &\approx \sum_{i = 1}^{N_\mathrm{s}} N_i(\underline{x}) c_i = N_i(\underline{x}) c_i \\
+T(\underline{x}, t) &\approx \sum_{j = 1}^{N_\mathrm{s}} N_i(\underline{x}) a_i(t) = N_i(\underline{x}) a_i(t)
+\end{align}
+```
+Notice that we have that ``N_i(\underline{x})`` is only a function of the coordinates ``\underline{x}``, and the coefficients are now a function of time, i.e. ``a_i(t)``. Consequently, we have that
+```math
+\dot{T} \approx N_i(\underline{x}) \dot{a}_i
+```
+Inserting this into our weak form, we get,
+```math
+ \int_\Omega N_i(\underline{x}) c_i \rho c_\mathrm{p} N_j(\underline{x}) \dot{a}_j\ \mathrm{d}\Omega - \int_\Omega \mathrm{grad}(N_i(\underline{x}) c_i)\cdot \underline{q}\ \mathrm{d}\Omega = 
+\int_\Omega N_i(\underline{x}) c_i\ h\ \mathrm{d}\Omega - 
+\int_\Gamma N_i(\underline{x}) c_i\ q_\mathrm{n}\ \mathrm{d}\Gamma
+```
+As before, we can factor out ``c_i``, and get ``c_i r_i = 0`` for all values of ``c_i``, such that our final expression is
+```math
+ \underbrace{\int_\Omega N_i(\underline{x}) \rho c_\mathrm{p} N_j(\underline{x})\ \mathrm{d}\Omega}_{M_{ij}}\ \dot{a}_j + \underbrace{\int_\Omega \mathrm{grad}(N_i))^\mathrm{T} \underline{\underline{D}}\ \mathrm{grad}(N_j) \ \mathrm{d}\Omega}_{K_{ij}}\ a_j = \underbrace{\int_\Omega N_i(\underline{x}) c_i\ h\ \mathrm{d}\Omega - \int_\Gamma N_i(\underline{x}) c_i\ q_\mathrm{n}\ \mathrm{d}\Gamma}_{f_i}
+```
+Or simply
+```math
+M_{ij} \dot{a}_j + K_{ij} a_j = f_i, \quad \text{or as matrices,}\quad \underline{\underline{M}}\ \underline{\dot{a}} + \underline{\underline{K}}\ \underline{a} = \underline{f}
+```
+The new matrix, ``\underline{\underline{M}}``, is called the mass matrix and gives a resistance to change in temperature (similar to how the mass gives resistance to change in velocity in mechanical problems).
+
+In order to solve this problem, we must introduce the concept of *time steps*, i.e. we would like *discretize* the time history as a set of discrete time intervals for which we perform calculations, 
+```math
+t_i = [t_0, t_1, t_2, \cdots, t_n, t_{n+1}, \cdots, t_N]
+```
+Let us consider the interval ``[t_n, t_{n+1}]``, where we introduce the approximation of the time derivative of ``a_j`` as
+```math
+\dot{a}_j \approx \frac{a_j(t_{n+1}) - a_j(t_n)}{t_{n+1} - t_n}
+```
+For such problems, we need to know the initial conditions, i.e. ``a_j(t_0)``. Then, our task is to find the values at the next time step, i.e. we are looking for ``a_{n+1}`` given ``a_n``. The question then becomes for our equation,
+```math
+M_{ij} \dot{a}_j + K_{ij} a_j = f_i
+```
+at what time should we evaluate the term ``K_{ij} a_j``? We can choose to do this at ``t = t_n`` or ``t = t_{n+1}``. We can also evaluate this anywhere inbetween, i.e. at ``t = t_n + [t_{n+1}-t_n]\theta``, where ``\theta \in [0,1]``. Introducing this into our equation yields
+```math
+M_{ij} \frac{a_j(t_{n+1}) - a_j(t_n)}{t_{n+1} - t_n} + K_{ij} \left[a_j(t_n) + [a_j(t_{n+1}) - a_j(t_n)]\right]\theta = f_i
+```
+We then reorganize and multiply with ``\Delta t = t_{n+1} - t_n``, to obtain
+```math
+\left[M_{ij} + \Delta t \theta K_{ij}\right] a_j(t_{n+1})  = f_i + [M_{ij}- \Delta t [1 - \theta] K_{ij}] a_j(t_n)
+```
+If we write this in matrix notation we have
+```math
+\left[\underline{\underline{M}} + \Delta t \theta \underline{\underline{K}}\right] \underline{a}(t_{n+1})  = \underline{f} + \left[\underline{\underline{M}}- \Delta t [1 - \theta]\underline{\underline{K}}\right] \underline{a}(t_n)
+```
+And we can solve for the unknowns at the next time step as
+```math
+\underline{a}(t_{n+1}) = \left[\underline{\underline{M}} + \Delta t \theta \underline{\underline{K}}\right]^{-1}\left[ \underline{f} + \left[\underline{\underline{M}}- \Delta t [1 - \theta]\underline{\underline{K}}\right] \underline{a}(t_n)\right]
+```
+Choosing ``\theta = 0`` results in a so-called fully explicit time integration (Forward Euler), which can be faster (since the matrix to be factorized is constant). However, this method requires small time steps to be stable, in general 
+```math
+\Delta t \leq \frac{2}{[1 - 2\theta]\lambda_\mathrm{max}}, \quad \lambda_\mathrm{max} = \text{ maximum eigenvalue of } \left[\underline{\underline K} - \lambda \underline{\underline C}\right] \underline{\Lambda} = 0
+```
+is a stable time step. Choosing ``\theta \geq 0.5`` is unconditionally stable. Often, the fully implicit ``\theta = 1`` is chosen. This is called Backward Euler.
 """
 
 # ╔═╡ 509c3307-b814-4da9-aecc-7adb47f8ec95
@@ -3506,6 +3745,7 @@ version = "4.1.0+0"
 # ╟─e60e838b-2f53-45d9-b644-615f7171aa0b
 # ╟─7ee86550-b9cd-4f6e-b039-c59d9c50f563
 # ╟─177135bc-71b8-4298-9c21-8c8a11c0c753
+# ╟─a004f4bc-1a6a-44f5-810b-58d446f813f4
 # ╟─3a99bad7-8447-435d-ae76-392361ca656d
 # ╟─9b75b720-0924-4933-9e60-3a0662dfeea7
 # ╟─de47e61e-f6db-42b2-96a7-8cd8f31d8825
@@ -3549,7 +3789,13 @@ version = "4.1.0+0"
 # ╟─70c347f5-f365-434b-a557-15d84b45997c
 # ╟─510466ef-7197-4e08-b915-1a23eb5fd095
 # ╟─87c10954-05f0-4866-ae45-df3fcc103c01
-# ╠═55570b97-a717-4a7c-89c4-a2ae941a8e32
+# ╟─e840274e-902e-4b28-a8bd-96af78380a20
+# ╟─c21b70de-f36d-4c91-9a29-8204bb0f8cc2
+# ╟─a471df59-3c75-4cfa-8f19-8612b20c59b0
+# ╟─11bd2c69-1744-4789-8d0b-62c23ae7b896
+# ╟─55570b97-a717-4a7c-89c4-a2ae941a8e32
+# ╟─af3043ce-2863-44d1-8e7e-db5465651c52
+# ╟─ef099aa1-dd65-468e-af83-632ef4e0b535
 # ╟─509c3307-b814-4da9-aecc-7adb47f8ec95
 # ╠═1f5672bc-28af-4ab7-b159-197ebf1e12a3
 # ╟─f13237a3-1bf4-4ec9-a797-20458df04e52
