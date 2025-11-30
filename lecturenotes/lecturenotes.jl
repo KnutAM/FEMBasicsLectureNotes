@@ -24,6 +24,7 @@ begin
 	using Ferrite
 	using LaTeXStrings
 	using Printf
+	using Format
 end
 
 # ╔═╡ 13c0d238-e1cc-473c-a41f-dfbb05622b0f
@@ -1726,17 +1727,17 @@ Notice that we have that ``N_i(\underline{x})`` is only a function of the coordi
 ```math
 \dot{T} \approx N_i(\underline{x}) \dot{a}_i
 ```
-Inserting this into our weak form, we get,
+Inserting this into our weak form (using ``N_i`` instead of ``N_i(\underline{x})`` for brevity), we get,
 ```math
- \int_\Omega N_i(\underline{x}) c_i \rho c_\mathrm{p} N_j(\underline{x}) \dot{a}_j\ \mathrm{d}\Omega - \int_\Omega \mathrm{grad}(N_i(\underline{x}) c_i)\cdot \underline{q}\ \mathrm{d}\Omega = 
-\int_\Omega N_i(\underline{x}) c_i\ h\ \mathrm{d}\Omega - 
-\int_\Gamma N_i(\underline{x}) c_i\ q_\mathrm{n}\ \mathrm{d}\Gamma
+ \int_\Omega N_i c_i \rho c_\mathrm{p} N_j \dot{a}_j\ \mathrm{d}\Omega - \int_\Omega \mathrm{grad}(N_i) c_i)\cdot \underline{q}\ \mathrm{d}\Omega = 
+\int_\Omega N_i c_i\ h\ \mathrm{d}\Omega - 
+\int_\Gamma N_i c_i\ q_\mathrm{n}\ \mathrm{d}\Gamma
 ```
 As before, we can factor out ``c_i``, and get ``c_i r_i = 0`` for all values of ``c_i``, such that our final expression is
 ```math
- \underbrace{\int_\Omega N_i(\underline{x}) \rho c_\mathrm{p} N_j(\underline{x})\ \mathrm{d}\Omega}_{M_{ij}}\ \dot{a}_j + \underbrace{\int_\Omega \mathrm{grad}(N_i))^\mathrm{T} \underline{\underline{D}}\ \mathrm{grad}(N_j) \ \mathrm{d}\Omega}_{K_{ij}}\ a_j = \underbrace{\int_\Omega N_i(\underline{x}) c_i\ h\ \mathrm{d}\Omega - \int_\Gamma N_i(\underline{x}) c_i\ q_\mathrm{n}\ \mathrm{d}\Gamma}_{f_i}
+ \underbrace{\int_\Omega N_i \rho c_\mathrm{p} N_j\ \mathrm{d}\Omega}_{M_{ij}}\ \dot{a}_j + \underbrace{\int_\Omega \mathrm{grad}(N_i))^\mathrm{T} \underline{\underline{D}}\ \mathrm{grad}(N_j) \ \mathrm{d}\Omega}_{K_{ij}}\ a_j = \underbrace{\int_\Omega N_i\ h\ \mathrm{d}\Omega - \int_\Gamma N_i\ q_\mathrm{n}\ \mathrm{d}\Gamma}_{f_i}
 ```
-Or simply
+where we inserted ``\underline{q} = -\underline{\underline{D}}\ \mathrm{grad}(N_j a_j)``. Using the matrices, we simply have
 ```math
 M_{ij} \dot{a}_j + K_{ij} a_j = f_i, \quad \text{or as matrices,}\quad \underline{\underline{M}}\ \underline{\dot{a}} + \underline{\underline{K}}\ \underline{a} = \underline{f}
 ```
@@ -1756,7 +1757,7 @@ M_{ij} \dot{a}_j + K_{ij} a_j = f_i
 ```
 at what time should we evaluate the term ``K_{ij} a_j``? We can choose to do this at ``t = t_n`` or ``t = t_{n+1}``. We can also evaluate this anywhere inbetween, i.e. at ``t = t_n + [t_{n+1}-t_n]\theta``, where ``\theta \in [0,1]``. Introducing this into our equation yields
 ```math
-M_{ij} \frac{a_j(t_{n+1}) - a_j(t_n)}{t_{n+1} - t_n} + K_{ij} \left[a_j(t_n) + [a_j(t_{n+1}) - a_j(t_n)]\right]\theta = f_i
+M_{ij}\Bigg[ \frac{a_j(t_{n+1}) - a_j(t_n)}{t_{n+1} - t_n}\Bigg] + K_{ij} \Bigg[a_j(t_n) + \theta[a_j(t_{n+1}) - a_j(t_n)]\Bigg] = f_i
 ```
 We then reorganize and multiply with ``\Delta t = t_{n+1} - t_n``, to obtain
 ```math
@@ -1772,7 +1773,7 @@ And we can solve for the unknowns at the next time step as
 ```
 Choosing ``\theta = 0`` results in a so-called fully explicit time integration (Forward Euler), which can be faster (since the matrix to be factorized is constant). However, this method requires small time steps to be stable, in general 
 ```math
-\Delta t \leq \frac{2}{[1 - 2\theta]\lambda_\mathrm{max}}, \quad \lambda_\mathrm{max} = \text{ maximum eigenvalue of } \left[\underline{\underline K} - \lambda \underline{\underline C}\right] \underline{\Lambda} = 0
+\Delta t \leq \frac{2}{[1 - 2\theta]\lambda_\mathrm{max}}, \quad \lambda_\mathrm{max} = \text{ maximum eigenvalue of } \left[\underline{\underline K} - \lambda \underline{\underline M}\right] \underline{\Lambda} = 0
 ```
 is a stable time step. Choosing ``\theta \geq 0.5`` is unconditionally stable. Often, the fully implicit ``\theta = 1`` is chosen. This is called Backward Euler.
 """
@@ -1788,7 +1789,350 @@ See presentations uploaded on Canvas
 # ╔═╡ 1f5672bc-28af-4ab7-b159-197ebf1e12a3
 md"""
 ## L12a: Mechanical equilibrium
-Derive ``\mathrm{div}(\underline{\sigma}) + \underline{b} = 0``
+So far, we have considered only the heat equation, now we will apply the same theory to mechanical equilibrium. To do so, we start by defining the stress according to *Cauchy's stress theorem* before determining the force and torque equilibrium conditions. In the 2nd half, L12b, we introduce linear elasticity for both 3d and 2d cases. 
+### Cauchy's theorem
+
+#### The traction vector
+To describe a distributed load acting on a surface, we need to define the traction, ``\underline{t}``, as the force per area. In general, the traction is not constant, and is defined as the ratio between the force, ``\underline{F}``, acting on a small patch with area ``A``, as we let the patch size go to zero, specifically
+```math
+\underline{t} := \lim_{A\rightarrow 0} \frac{\underline{F}}{A}
+```
+The surface that we consider can be either a physical surface of a body, or we can create an imaginary surface inside a continuum by cutting it and considering the internal forces acting on this surface. The latter is illustrated by cutting the potato-shaped body below with a plane having the normal vector $\underline{n}$.
+To describe a distributed load acting on a surface, we need to define the traction, ``\underline{t}``, as the force per area. In general, the traction is not constant, and is defined as the ratio between the force, ``\underline{F}``, acting on a small patch with area ``A``, as we let the patch size go to zero, specifically
+```math
+\underline{t} := \lim_{A\rightarrow 0} \frac{\underline{F}}{A}
+```
+The surface that we consider can be either a physical surface of a body, or we can create an imaginary surface inside a continuum by cutting it and considering the internal forces acting on this surface. The latter is illustrated by cutting the potato-shaped body below with a plane having the normal vector ``\underline{n}``.
+"""
+
+# ╔═╡ 4167e37d-b9e2-484f-935c-729e0507630b
+LocalResource(joinpath(@__DIR__, "traction_definition.svg"))
+
+# ╔═╡ bebe6b31-f5f3-4719-b970-7f0583bc3674
+md"""
+#### Multiple traction vectors at the same point
+When using the traction on a specific plane to investigate the load inside a body, as shown above, we only evaluate the load on a specific plane. But at the same point in the body, we could cut it using different planes, as illustrated below with the normal vectors ``\underline{n}_1`` and ``\underline{n}_2``.
+"""
+
+# ╔═╡ 0d31dfd6-df4b-4d08-a099-c69c2f2cb071
+LocalResource(joinpath(@__DIR__, "traction_multiple_cuts.svg"))
+
+# ╔═╡ 9459013d-e12c-4a82-9636-5ce912cccaf3
+md"""
+This leads to different traction vectors, ``\underline{t}_1`` and ``\underline{t}_2``, which is inconvenient if we want to check if the material will fail in this location. Then we would need to calculate and check the traction on all planes.
+
+In this lecture, we aim to find a quantity that can describe the loading on all planes in the body, instead of having a traction vector for each plane. To do this, let's cut out a small tetrahedron at the point of interest.
+"""
+
+# ╔═╡ 48ebeebf-8507-4941-9361-4a5b4fe601db
+begin
+	σtet_L1_slider = @bind σtet_L1 Slider(0.1:0.1:1.0; default=0.5)
+	σtet_L2_slider = @bind σtet_L2 Slider(0.1:0.1:1.0; default=0.5)
+	σtet_L3_slider = @bind σtet_L3 Slider(0.1:0.1:1.0; default=0.5)
+	σtet_azimuth_slider = @bind σtet_azimuth Slider(range(-π, π, 24+1); default=-3π/12)
+	σtet_elevation_slider = @bind σtet_elevation Slider(range(-π, π, 24+1); default=π/6)
+	md"""
+	#### The stress tetrahedron
+	We consider a tetrahedron, where 3 sides are aligned with the coordinate system as
+	
+	| Color | Plane | Normal | Area |
+	| ----- | ----- | ------ | ---- |
+	| $\textcolor{blue}{\text{Blue}}$  | $X_2$-$X_3$ | $\boldsymbol{n}_1=-\boldsymbol{e}_1$ | $A_1$ |
+	| $\textcolor{orange}{\text{Orange}}$   | $X_1$-$X_3$ | $\boldsymbol{n}_2=-\boldsymbol{e}_2$ | $A_2$ |
+	| $\textcolor{green}{\text{Green}}$ | $X_1$-$X_2$ | $\boldsymbol{n}_3=-\boldsymbol{e}_3$ | $A_3$ |
+	| $\textcolor{cyan}{\text{Cyan}}$ |   | $\hat{\boldsymbol{n}}$ | $\hat{A}$ |
+	
+	Defining the lengths, $L_1$, $L_2$, and $L_3$, along the coordinate axes fully defines the tetrahedron. 
+	
+	The traction vectors acting on each side, $\boldsymbol{t}$, are shown in grey. You can change the side lengths, and rotate the figure with the following controls to better understand the geometry.
+	
+	|  |  |  |
+	|---|---|---|
+	|``L_1``: $(σtet_L1_slider) | ``L_2``: $(σtet_L2_slider) | ``L_3``: $(σtet_L3_slider) |
+	| Rotation: $(σtet_azimuth_slider) | Elevation: $(σtet_elevation_slider) | | 
+	"""
+end
+
+# ╔═╡ a9e3d9df-5ab5-4ced-a4e6-c61ce2e79046
+begin
+	# utils
+	mkobsvec(n) = Plt.Observable(fill(NaN, n))
+	convert_to_point(v::Vec{dim}) where dim = convert(Plt.Point{dim}, v)
+	convert_to_vec(v::Vec{dim}) where dim = convert(Plt.Vec{dim}, v)
+	convert_to_point(v::NTuple{dim}) where dim = convert(Plt.Point{dim}, v)
+	function calculate_relative_areas(L1, L2, L3)
+		n0 = zero(Vec{3})
+		n1 = Vec{3}(( L1, 0.0, 0.0))
+		n2 = Vec{3}((0.0,  L2, 0.0))
+		n3 = Vec{3}((0.0, 0.0,  L3))
+
+		faces = [(n0, n3, n2), (n0, n1, n3), (n0, n2, n1), (n1, n2, n3)]
+		face_areas = map(face -> norm((face[2] - face[1]) × (face[3] - face[1])), faces)
+		return face_areas[1:3] / face_areas[4]
+	end
+	function calculate_quantities_stress_tetrahedron(lengths = (0.8, 1.2, 1.5))
+		L1, L2, L3 = lengths
+		n_scaleface = 0.25
+		n0 = zero(Vec{3})
+		n1 = Vec{3}(( L1, 0.0, 0.0))
+		n2 = Vec{3}((0.0,  L2, 0.0))
+		n3 = Vec{3}((0.0, 0.0,  L3))
+		
+		σ = SymmetricTensor{2,3}((1.0, 0.5, 0.0, 0.5, 0.2, 0.2))/2
+		
+		faces = [(n0, n3, n2), (n0, n1, n3), (n0, n2, n1), (n1, n2, n3)]
+		face_colors = [(:blue, 1.0), (:orange, 1.0), (:green, 1.0), (:cyan, 0.3)]
+		face_colors = map(first, face_colors)
+		v_tmp = Float64[]
+		v_colors = []
+		face_normals = []
+		face_tractions = []
+		face_centers = []
+		face_areas = Float64[]
+		for (face, color) in zip(faces, face_colors)
+			push!(face_centers, sum(face)/length(face))
+			w = (face[2] - face[1]) × (face[3] - face[1])
+			n = w / norm(w)
+			push!(face_tractions, n ⋅ σ)
+			push!(face_areas, norm(w))
+			push!(face_normals, n_scaleface * n)
+			for n in face
+				push!(v_colors, color)
+				append!(v_tmp, n...)
+			end
+		end
+		vertices= collect(transpose(reshape(v_tmp, 3, :)))
+		face_vertices = collect(transpose(reshape(1:12, 3, :)))
+		return vertices, face_vertices, v_colors, face_colors, map(convert_to_point, face_centers), map(convert_to_vec, face_normals), map(convert_to_vec, face_tractions)
+	end
+
+	function update_stress_tetrahedron!(obs, L1, L2, L3, azimuth, elevation)
+		verts, f_verts, v_colors, f_colors, f_centers, f_normals, f_tractions = calculate_quantities_stress_tetrahedron((L1, L2, L3))
+		obs["verts"][] = verts
+		obs["f_centers"][] = f_centers
+		obs["f_normals"][] = f_normals
+		obs["f_tractions"][] = f_tractions
+		obs["azimuth"][] = azimuth
+		obs["elevation"][] = elevation
+		return nothing
+	end
+	
+	function setup_stress_tetrahedron()
+		fig = Plt.Figure(size=(600,400))
+		azimuth = Plt.Observable(-0.25π)
+		elevation = Plt.Observable(π/8)
+		ax = Plt.Axis3(fig[1,0:2]; xlabel=L"X_1", ylabel=L"X_2", zlabel=L"X_3", azimuth, elevation)
+		foreach(lf -> lf(ax, (-0.3, 1.1)), (Plt.xlims!, Plt.ylims!, Plt.zlims!))
+		
+		# Strategy is to plot each face with separate nodes, so 3*4 nodes in total
+		verts, f_verts, v_colors, f_colors, f_centers, f_normals, f_tractions = calculate_quantities_stress_tetrahedron((0.8, 1.2, 1.5))
+		obs = Dict(
+			"verts" => Plt.Observable(verts),
+			"f_centers" => Plt.Observable(f_centers),
+			"f_normals" => Plt.Observable(f_normals),
+			"f_tractions" => Plt.Observable(f_tractions),
+			"azimuth" => azimuth, "elevation" => elevation
+		)
+		
+		Plt.mesh!(ax, obs["verts"], f_verts; color=v_colors)
+		
+		p_normals = Plt.arrows2d!(ax, 
+								  obs["f_centers"], 
+								  obs["f_normals"]; 
+								  color=f_colors,
+								  #linewidth=0.035, 
+								  #arrowsize=Plt.Vec3f(0.10, 0.10, 0.15)
+								 )
+		p_traction = Plt.arrows2d!(ax, 
+								   obs["f_centers"], 
+								   obs["f_tractions"]; 
+								   color=(:grey, 1.0),
+								   #linewidth=0.040, 
+								   #arrowsize=Plt.Vec3f(0.10, 0.10, 0.15)
+								   )
+
+		zeropoints = [zero(Plt.Point3) for _ in 1:3]
+		endpoints = [Plt.Point3(ntuple(i->1.0*(i==j), 3)) for j in 1:3]
+		Plt.hidespines!(ax)
+		Plt.hidedecorations!(ax)
+		
+		Plt.arrows2d!(ax, 
+					  zeropoints, 
+					  endpoints; 
+					  #linewidth=0.02, 
+					  #arrowsize=Plt.Vec3f(0.075, 0.075, 0.1)
+					  )
+		Plt.text!(ax, [Plt.Point3(1.0, 0, 0.05), Plt.Point3(0, 1.0, 0.05), Plt.Point3(0.00, 0.00, 1.10)]; text=[L"\mathbf{e}_1", L"\mathbf{e}_2", L"\mathbf{e}_3"], fontsize=20)
+
+		arrowpoints = let # local scope
+			w_tail = 0.2; l_tail = 0.6; w_head = 0.5
+			l_head = 1 - l_tail
+			Plt.Point2f[(0, -w_tail/2), (l_tail, -w_tail/2), (l_tail, -w_head/2), (l_tail + l_head, 0.0), (l_tail, w_head/2), (l_tail, w_tail/2), (0, w_tail/2)] .+ Plt.Point2f(0, 0.5)
+		end
+
+		face_legend_elements = [Plt.PolyElement(;color, points=arrowpoints) for color in f_colors]
+		face_legends = [L"\mathbf{n}_1", L"\mathbf{n}_2", L"\mathbf{n}_3", L"\hat{\mathbf{n}}"]
+		traction_legend_element = Plt.PolyElement(;color=:grey, points=arrowpoints)
+		
+		Plt.Legend(fig[0,1], [face_legend_elements..., traction_legend_element], [face_legends..., L"\mathbf{t}"];
+		patchsize = (20, 15), orientation = :horizontal, labelsize=20,
+		tellwidth=true, tellheight=true)
+		
+		return fig, obs
+	end
+	stress_tetrahedron_fig, stress_tetrahedron_obs = setup_stress_tetrahedron();
+end;
+
+# ╔═╡ 75a525f7-e727-4c55-9fcd-a4335d97c432
+let
+	update_stress_tetrahedron!(stress_tetrahedron_obs, σtet_L1, σtet_L2, σtet_L3, σtet_azimuth, σtet_elevation)
+	stress_tetrahedron_fig
+end
+
+# ╔═╡ dc02ad0d-058b-4369-be78-44039aa6e6b1
+md"""
+#### Force equilibrium 
+We require that the tetrahedron is in equilibrium, i.e.
+```math
+\sum \underline{F} = \underline{t}_1 A_1 + \underline{t}_2 A_2 + \underline{t}_3 A_3 + \hat{\underline{t}} \hat{A} + \underline{b} V = \underline{t}_i A_i + \hat{\underline{t}} \hat{A}  + \underline{b} V = 0
+```
+where ``\underline{b}`` is a body load (force per volume) and ``V=A_3 L_3 / 3`` the volume of the tetrahedron. Dividing by ``A_3`` and letting the size go towards zero, we see that the body load term vanishes in comparison to the other terms, and in the limit as the size goes to zero, we only require that 
+```math
+\underline{t}_i A_i + \hat{\underline{t}} \hat{A} = 0
+```
+To move forward, we need to find a relationship between the areas ``A_i`` and ``\hat{A}``
+"""
+
+# ╔═╡ 3345a144-6871-4b5b-b60b-db702770b30a
+md"""
+#### Area relationships
+To find a relationship between the areas, we will use Gauss' divergence theorem,
+```math
+\int_\Omega \mathrm{div}(\underline{a})\ \mathrm{d}\Omega = \int_\Gamma \underline{a}\cdot\underline{n}\ \mathrm{d}\Gamma
+```
+where ``\underline{n}`` is the outwards-pointing normal vector from the body ``\Omega`` with boundary ``\Gamma``. ``\underline{a}`` a vector-field defined in ``\Omega``. To study the areas, we will choose the spatially constant base vector ``\underline{e}_i`` as our vector field, yielding
+```math
+0 = \int_\Gamma \underline{e}_i \cdot \underline{n}\ \mathrm{d}\Gamma = 
+\int_\Gamma n_i\ \mathrm{d}\Gamma, \quad \Rightarrow \quad \int_\Gamma \underline{n}\ \mathrm{d}\Gamma = \underline{0}
+```
+as ``\mathrm{div}(\underline{e}_i) = 0``. 
+As seen above, our tetrahedron consists of 4 flat sides, allowing us to write the integral as a sum over all sides, i.e. 
+```math
+\int_\Gamma \underline{n}\ \mathrm{d}\Gamma = \hat{A}\ \hat{\underline{n}} + A_i \underline{n}_i = \underline{0}
+```
+Using that ``\underline{n}_i = -\underline{e}_i``, we get ``\hat{A}\ \hat{\underline{n}} = A_i \underline{e}_i``. If we take the dot product with the base vector ``\underline{e}_j``, we get
+```math
+\begin{align}
+\hat{A}\ \hat{\underline{n}} \cdot \underline{e}_j &= A_i \underline{e}_i \cdot \underline{e}_j = A_i \delta_{ij} \\
+\hat{A}\ \hat{n}_j &= A_j
+\end{align}
+```
+
+"""
+
+# ╔═╡ b5815863-6379-4711-a9fd-4cc69e8388e1
+let
+	A1, A2, A3 = calculate_relative_areas(σtet_L1, σtet_L2, σtet_L3)
+	fmt = FormatSpec("0.2f")
+	md"""
+	For the current geometry above, we have the normal vector ``\hat{\underline{n}} = `` ($(pyfmt(fmt, A1)), $(pyfmt(fmt, A2)), $(pyfmt(fmt, A3))), and the area relations become
+	
+	``A_1`` = $(pyfmt(fmt, A1)) ``\hat{A}``, 
+	``\quad`` 
+	``A_2`` = $(pyfmt(fmt, A2)) ``\hat{A}``,
+	``\quad`` 
+	``A_3`` = $(pyfmt(fmt, A3)) ``\hat{A}``
+
+	We have thus managed to express the areas $A_i$ relative $\hat{A}$ from the normal vector $\hat{\underline{n}}$.
+	"""
+end
+
+# ╔═╡ 2ec78a16-f64e-4795-8305-d1a36899eb0a
+md"""
+#### The Cauchy stress
+To introduce the Cauchy stress, let's evaluate the equilibrium equation above in each coordinate direction, by taking the dot product with the base vector ``\underline{e}_j``,
+```math
+A_i \underline{t}_i \cdot \underline{e}_j   + \hat{A} \hat{\underline{t}} \cdot \underline{e}_j = 0
+```
+Next, we insert the area relationship, ``A_i = \hat{A}\ \hat{n}_i``, and divide by ``\hat{A}``, to get
+```math
+\hat{n}_i \underline{t}_i \cdot \underline{e}_j + \hat{\underline{t}} \cdot \underline{e}_j = 0
+```
+Last, we define the Cauchy stress, ``\sigma_{ij} := - \underline{t}_i \cdot \underline{e}_j``, resulting in 
+```math
+\hat{t}_j = \hat{n}_i \sigma_{ij}
+```
+In matrix-vector notation, this becomes
+```math
+\hat{\underline{t}} = \hat{\underline{n}} \cdot \underline{\underline{\sigma}}
+```
+Since the plane with normal ``\hat{\underline{n}}`` is an arbitrary plan, this result, called the Cauchy stress theorem, shows that the quantity, ``\underline{\underline{\sigma}}``, which is the Cauchy stress, allows us to describe the traction ``\hat{\underline{t}}`` on any plane. I.e., the stress matrix ``\underline{\underline{\sigma}}``, fully describes the load on the material at a point in the body. We only used the ``\hat{\underline{n}}`` and ``\hat{\underline{t}}`` in this derivation, and we will state the Cauchy's theorem as
+```math
+t_j = n_i \sigma_{ij}, \quad \text{ or in matrix-vector}, \quad \underline{t} = \underline{n} \cdot \underline{\underline{\sigma}} = \underline{n}^\mathrm{T}\underline{\underline{\sigma}}
+```
+where ``\underline{t}`` is the traction vector on a plane with normal vector ``\underline{n}``. 
+"""
+
+# ╔═╡ 6ccce575-56b5-4fc6-969e-b71348c44a81
+md"""
+### Translational equilibrium
+
+Starting from Newton's 2nd law for a particle, ``\underline{F} = m\underline{a} = m\underline{\ddot{u}}`` (or ``F_j = m \ddot{u}_j``), we can set up this law for a body (or part of a body), ``\Omega`` with boundary ``\Gamma`` as 
+```math
+\underbrace{\int_\Gamma t_j\ \mathrm{d}\Gamma + \int_\Omega b_j\ \mathrm{d}\Omega}_{F_j} = \underbrace{\int_\Omega \rho \ddot{u}_j\ \mathrm{d}\Omega}_{m\ddot{u}_j}
+```
+where ``t_j`` is the traction vector on the boundary ``\Gamma``, ``b_j`` is the body (volume) force, ``\rho`` the density and ``\ddot{u}_j`` the acceleration (2nd time-derivative of the displacements ``u_j``). Inserting Cauchy's theorem, we get
+```math
+\int_\Gamma n_i \sigma_{ij}\ \mathrm{d}\Gamma + \int_\Omega b_j\ \mathrm{d}\Omega = \int_\Omega \rho \ddot{u}_j\ \mathrm{d}\Omega
+```
+Then we can apply the divergence theorem ,
+```math
+\int_\Gamma n_i \sigma_{i\textcolor{red}{j}}\ \mathrm{d}\Gamma = \int_\Omega \frac{\partial \sigma_{i\textcolor{red}{j}}}{\partial x_i}\ \mathrm{d}\Omega
+```
+To see that this is the same as for the case of a vector field, Equation [^divergencetheorem], notice that this is the same as that equation for each distinct value of the the index ``\textcolor{red}{j}``. Including this gives,
+```math
+\int_\Omega \frac{\partial \sigma_{ij}}{\partial x_i}\ \mathrm{d}\Omega + \int_\Omega b_j\ \mathrm{d}\Omega = \int_\Omega \rho \ddot{u}_j\ \mathrm{d}\Omega
+```
+Which allows us to apply the localization argument (must hold for any subdomain ``\Omega``, hence it needs to hold point-wise), i.e. 
+```math
+\frac{\partial \sigma_{ij}}{\partial x_i} + b_j = \rho \ddot{u}_j
+```
+"""
+
+# ╔═╡ 20f8718e-60ea-415b-aab3-17a90c7f31c6
+md"""
+### Rotational equilibrium
+We consider a box with side lengths ``\Delta x_1 \rightarrow 0`` and ``\Delta x_2 \rightarrow 0``, with a stress ``\underline{\underline{\sigma}}``, and take the torque balance around the center of the box:
+"""
+
+# ╔═╡ d7e7d8c5-0673-4c78-a484-4ee8116f1a76
+LocalResource(joinpath(@__DIR__, "stress_symmetry_viapdf.svg"))
+
+# ╔═╡ 7cec58dd-dd80-4ce5-b885-f1e2527e481d
+md"""
+This torque balance around the center of the box, with positive direction counter-clockwise, considering a thickness ``\Delta x_3``, becomes
+```math
+\begin{align}
+\sum T = 0 &= 
+\frac{\Delta x_1}{2} \left[\Delta x_2 \Delta x_3 \left[\underline{t}_1^+\right]_2\right] - 
+\frac{\Delta x_2}{2} \left[\Delta x_1 \Delta x_3 \left[\underline{t}_2^+\right]_1\right]\\ 
+&- 
+\frac{\Delta x_1}{2} \left[\Delta x_2 \Delta x_3 \left[\underline{t}_1^-\right]_2\right] + 
+\frac{\Delta x_2}{2} \left[\Delta x_1 \Delta x_3 \left[\underline{t}_2^-\right]_1\right]
+\end{align}
+```
+Dividing by ``\Delta x_1 \Delta x_2 \Delta x_3 / 2`` and inserting the components of ``\underline{t}_i^\pm``, gives
+```math
+\begin{align}
+0 &= 
+\left[\underline{t}_1^+\right]_2 - 
+\left[\underline{t}_2^+\right]_1 - 
+\left[\underline{t}_1^-\right]_2 + 
+\left[\underline{t}_2^-\right]_1 \\
+0 &= \sigma_{12} - \sigma_{21} - [-\sigma_{12}] + [-\sigma_{21}] = 2\sigma_{12} - 2\sigma_{21} \Rightarrow \sigma_{12} = \sigma_{21}
+\end{align}
+```
+Showing that the stress (in 2D) is symmetric. The same results follows by doing the same derivation in 3D. 
 """
 
 # ╔═╡ f13237a3-1bf4-4ec9-a797-20458df04e52
@@ -1821,6 +2165,7 @@ with the components ``\varepsilon_{ij}`` defined as
 \end{bmatrix}
 ```
 ### Plane strain
+"Plane strain" implies that we assume that ``\varepsilon_{ij} = 0`` if ``i = 3`` or ``j = 3``. In this case, the stiffness tensor in Voigt format becomes
 ```math
 \underline{\underline{D}} = \frac{E}{[1+\nu][1 - 2\nu]} \begin{bmatrix}
 1 - \nu & \nu  & 0 \\ 
@@ -1828,7 +2173,15 @@ with the components ``\varepsilon_{ij}`` defined as
 0 & 0 & \frac{1 - 2\nu}{2}
 \end{bmatrix}
 ```
+
+The plane strain assumption holds if the out-of-plane motion is constrained, and the loading is uniform across the thickness. Note that this is always an approximation! The typical example is when the thickness (out-of-plane dimension) is large, but this doesn't always hold. Hence the key question to ask is if the out-of-plane motion of the analyzed cross-section is contrained.  
+
+!!! note "Out-of-plane stress components"
+    When calculating the stress under plane strain, we get a 2d stress (3 components
+	in the Voigt format), which is enough for ensuring equilibrium. However, since ``\sigma_{ij} \neq 0`` for ``i = 3`` or ``j = 3``, we have to include those stress components when calculating effective stress measures. An easy way to obtain the full stress matrix, is using the stiffness tensor for 3d, and inserting zeros for the strain components that should be zero. 
+
 ### Plane stress
+"Plane stress" implies that we assume that ``\sigma_{ij} = 0`` if ``i = 3`` or ``j = 3``. In this case, the stiffness tensor in Voigt format becomes
 ```math
 \underline{\underline{D}} = \frac{E}{1-\nu^2} \begin{bmatrix}
 1 & \nu  & 0 \\ 
@@ -1837,21 +2190,393 @@ with the components ``\varepsilon_{ij}`` defined as
 \end{bmatrix}
 ```
 
+The plane stress assumption holds if the out-of-plane motion is unconstrained, and the loading is uniform across the thickness. The typical example is when the thickness (out-of-plane dimension) is small, but there are cases when plane stress is a good assumption also for a large of out plane dimensions. Hence the key question to ask is if the out-of-plane motion of the analyzed cross-section is unconstrained. Note that for thin cross-sections, we may get a good approximation even if the loading is not uniform across the thickness direction. 
+
+!!! note "Out-of-plane strain components"
+    When calculating the stress under plane strain, we use 2d strain (3 components
+	in the Voigt format), which is enough for ensuring equilibrium. If we need to obtain the nonzero strain components for ``i = 3`` or ``j = 3``, we can use the the stiffness tensor for 3d, and inserting zeros for the stress components that should be zero, before calculating ``\underline{\varepsilon} = \underline{\underline{D}}^{-1} \underline{\sigma}``. 
+
+"""
+
+# ╔═╡ e2f98607-c9a6-4a89-ba81-87b5a83cb789
+md"""
+### Effective stress measures and yielding
+Using *linear elasticity* is an assumption, which gives a very good approximation for many engineering materials when the stress is not too high. The question of what is a too high stress is often answered by calculating effective stress measures. For metals, we often want to stay below the yield limit of the material (after which we induce plastic deformations), and a typical effective stress measure is the **von Mises** effective stress, ``\sigma_\mathrm{vM}``,
+```math
+\sigma_\mathrm{vM} = \sqrt{\frac{
+[\sigma_{11} - \sigma_{22}]^2 + [\sigma_{11} - \sigma_{33}]^2 + [\sigma_{22} - \sigma_{33}]^2 + 6[\sigma_{12}^2 + \sigma_{13}^2 + \sigma_{23}^2]}{2}}
+```
+For metals, the value of ``\sigma_\mathrm{vM}`` can be compared to the yield limit, to see if it is valid to consider linear elasticity and if no permanent deformations will occur. What is special about the von Mises effective stress is that it does not depend on the so-called hydrostatic stress, i.e. ``\sigma_\mathrm{vM}(\underline{\underline{\sigma}}) = \sigma_\mathrm{vM}(\underline{\underline{\sigma}} - p \underline{\underline{I}})``, where ``p`` is the pressure. This is a good assumption for metals, but for granular materials, such as soil, gravel, and concrete, the **Drucker-Prager** criterion may be more suitable. It is defined as
+```math
+\sigma_\mathrm{DP} = \sigma_\mathrm{vM} - B\underbrace{[\sigma_{11} + \sigma_{22} + \sigma_{33}]}_{-p}
+```
+These are just some examples of different stress measures, and what to use really depends on the specific analysis to be made. While these are suitable for e.g. determining the maximum load on a structure, they are **not suitable** for analyzing fatigue. 
 """
 
 # ╔═╡ 5f0cf5a1-bd8c-4637-a28d-e4fd134254ab
 md"""
 ## L13: Weak form of the mechanical equilibrium
+```math
+\int_\Omega \delta u_j\ \frac{\partial \sigma_{ij}}{\partial x_i}\ \mathrm{d}\Omega + \int_\Omega \delta u_j\ b_j\ \mathrm{d}\Omega = \int_\Omega \delta u_j\ \rho \ddot{u}_j\ \mathrm{d}\Omega
+```
+Differentiate ``\partial[\delta u_j \sigma_{ij}] / \partial x_i``,
+```math
+\frac{\partial}{\partial x_i}[\delta u_j \sigma_{ij}] = \frac{\partial \delta u_j}{\partial x_i} \sigma_{ij} + \delta u_j \frac{\partial \sigma_{ij}}{\partial x_i}
+```
+Denoting ``v_i = \delta u_j \sigma_{ij}``, we can apply the divergence theorem for a vector, i.e. 
+```math
+\int_\Omega \frac{\partial}{\partial x_i}[\delta u_j \sigma_{ij}]\ \mathrm{d}\Omega = \int_\Omega \frac{\partial v_i}{\partial x_i}\ \mathrm{d}\Omega = \int_\Gamma n_i v_i\ \mathrm{d}\Gamma = \int_\Gamma \delta u_j n_i \sigma_{ij}\ \mathrm{d}\Gamma = \int_\Gamma \delta u_j t_j\ \mathrm{d}\Gamma
+```
+And putting it all together, we get
+```math
+\int_\Gamma \delta u_j t_j\ \mathrm{d}\Gamma - \int_\Omega \frac{\partial \delta u_j}{\partial x_i} \sigma_{ij}\ \mathrm{d}\Omega + \int_\Omega \delta u_j\ b_j\ \mathrm{d}\Omega = \int_\Omega \delta u_j\ \rho \ddot{u}_j\ \mathrm{d}\Omega
+```
+And reorganizing we get,
+```math
+\int_\Omega \delta u_j\ \rho \ddot{u}_j\ \mathrm{d}\Omega + \int_\Omega \frac{\partial \delta u_j}{\partial x_i} \sigma_{ij}\ \mathrm{d}\Omega = \int_\Gamma \delta u_j t_j\ \mathrm{d}\Gamma + \int_\Omega \delta u_j\ b_j\ \mathrm{d}\Omega
+```
+We note that the stress, ``\sigma_{ij}``, and the gradient ``\partial \delta u_j/\partial x_i``, are 2nd-order objects (i.e. two indices). We can represent these as matrices, e.g.
+```math
+\underline{\underline{\sigma}} = \begin{bmatrix} 
+\sigma_{11} & \sigma_{12} \\ \sigma_{21} & \sigma_{22} \end{bmatrix}
+```
+And we define a special multiplication using ``:``, as 
+```math
+\begin{align}
+\underline{\underline{a}}:\underline{\underline{b}} &= a_{ij} b_{ij}\\
+a_{ij} b_{ij} &= a_{11} b_{11} + a_{21} b_{21} + a_{12} b_{12} + a_{22} b_{22}, \quad \text{in 2d}
+\end{align}
+```
+We can then write the weak form as, using that ``\sigma_{ij} = \sigma_{ji}``,
+```math
+\int_\Omega \delta \underline{u}\ \cdot \rho \ddot{\underline{u}}\ \mathrm{d}\Omega + \int_\Omega \frac{\partial \delta \underline{u}}{\partial \underline{x}} :\underline{\underline{\sigma}}\ \mathrm{d}\Omega = \int_\Gamma \delta \underline{u} \cdot \underline{t}\ \mathrm{d}\Gamma + \int_\Omega \delta \underline{u}\cdot\underline{b}\ \mathrm{d}\Omega
+```
 """
 
 # ╔═╡ 976fbb59-1adf-4e95-84b8-75c7bf302917
 md"""
 ## L14: Finite element analysis of linear elasticity
+We now introduce the approximations,
+```math
+\begin{align}
+\delta\underline{u}(\underline{x}) &\approx \sum_{i = 1}^{N_\mathrm{s}} \underline{M}_i(\underline{x}) c_i = \underline{M}_i(\underline{x}) c_i \\
+\underline{u}(\underline{x}) &\approx \sum_{j = 1}^{N_\mathrm{s}} \underline{M}_j(\underline{x}) a_j = \underline{M}_j(\underline{x}) a_j
+\end{align}
+```
+where ``\underline{M}_i(\underline{x})`` are *vector-valued* shape functions. We will get back to how exactly these are defined later
+
+!!! note "Notation"
+    The same symbol, ``N_i(\underline{x})`` and ``\underline{N}_i(\underline{x})``, 
+    is used for both scalar and vector-valued shape functions. Here we use
+    ``N_i(\underline{x})`` and ``\underline{M}_i(\underline{x})`` to 
+    clearly separate the two).
+
+Inserting this into the weak form, we obtain (skipping ``(\underline{x})`` in ``\underline{M}_i(\underline{x})`` for brevity),
+```math
+\int_\Omega [\underline{M}_i c_i]\cdot \rho \underline{M}_j \ddot{a}_j\ \mathrm{d}\Omega + \int_\Omega \frac{\partial [\underline{M}_i c_i]}{\partial \underline{x}} :\underline{\underline{\sigma}}\ \mathrm{d}\Omega = \int_\Gamma [\underline{M}_i c_i] \cdot \underline{t}\ \mathrm{d}\Gamma + \int_\Omega [\underline{M}_i c_i]\cdot\underline{b}\ \mathrm{d}\Omega
+```
+And just as for the 1D and 2D heat equation, we can factor out the arbitrary coefficients, ``c_i``, to obtain ``c_i r_i = 0``, resulting in that we require ``r_i = 0``, and we get 
+```math
+\int_\Omega \underline{M}_i\cdot \rho \underline{M}_j\ \mathrm{d}\Omega\ \ddot{a}_j + \int_\Omega \frac{\partial \underline{M}_i}{\partial \underline{x}} :\underline{\underline{\sigma}}\ \mathrm{d}\Omega = \int_\Gamma \underline{M}_i \cdot \underline{t}\ \mathrm{d}\Gamma + \int_\Omega \underline{M}_i\cdot\underline{b}\ \mathrm{d}\Omega
+```
+While it is possible to work with this form, many Finite Element codes use the *Voigt* format to represent the matrices, ``\partial \underline{M}_i/\partial \underline{x}`` and ``\underline{\underline{\sigma}}``, as vectors. Specifically we define the Voigt-representation of the stress, ``\underline{\sigma}``, as
+```math
+\underbrace{\underline{\sigma}}_{3\text{D}} = \begin{bmatrix} \sigma_{11} \\ \sigma_{22} \\ \sigma_{33} \\ \sigma_{23} \\ \sigma_{13} \\ \sigma_{12} \end{bmatrix}
+, \quad
+\underbrace{\underline{\sigma}}_{2\text{D}} = \begin{bmatrix} \sigma_{11} \\ \sigma_{22} \\ \sigma_{12} \end{bmatrix}
+```
+where we only store 6 or 3 components in 3d and 2d, instead of the full 9 or 4 components due to the symmetry, ``\sigma_{ij} = \sigma_{ji}``. 
+The gradient of the shape functions, ``\partial \underline{M}_i/\partial \underline{x}``, is represented by the B-vector, ``\underline{B}_i``,
+
+```math
+\underbrace{\underline{B}_i}_{3\text{D}} = \begin{bmatrix} 
+\frac{\partial [\underline{M}_i]_1}{\partial x_1} \\ 
+\frac{\partial [\underline{M}_i]_2}{\partial x_2} \\ 
+\frac{\partial [\underline{M}_i]_3}{\partial x_3} \\ 
+\frac{\partial [\underline{M}_i]_2}{\partial x_3} + \frac{\partial [\underline{M}_i]_3}{\partial x_2} \\ 
+\frac{\partial [\underline{M}_i]_1}{\partial x_3} + \frac{\partial [\underline{M}_i]_3}{\partial x_1} \\ 
+\frac{\partial [\underline{M}_i]_1}{\partial x_2} + \frac{\partial [\underline{M}_i]_2}{\partial x_1} 
+\end{bmatrix}
+, \quad
+\underbrace{\underline{B}_i}_{2\text{D}} = \begin{bmatrix} 
+\frac{\partial [\underline{M}_i]_1}{\partial x_1} \\ 
+\frac{\partial [\underline{M}_i]_2}{\partial x_2} \\ 
+\frac{\partial [\underline{M}_i]_1}{\partial x_2} + \frac{\partial [\underline{M}_i]_2}{\partial x_1} 
+\end{bmatrix}
+```
+"""
+
+# ╔═╡ f53dc83a-af49-4abc-90fc-4b5301987a0a
+md"""
+With these definitions, we see that we have (in 2d as an example)
+```math
+\underline{B}_i^\mathrm{T} \underline{\sigma} = 
+\frac{\partial [\underline{M}_i]_1}{\partial x_1} \sigma_{11}
++ \frac{\partial [\underline{M}_i]_2}{\partial x_2} \sigma_{22} 
++ \left[\frac{\partial [\underline{M}_i]_1}{\partial x_2} + \frac{\partial [\underline{M}_i]_2}{\partial x_1}\right]\sigma_{12} = \frac{\partial \underline{M}_i}{\partial \underline{x}} :\underline{\underline{\sigma}}
+```
+Using the Voigt notation, we then get the Finite Element form,
+```math
+\int_\Omega \underline{M}_i^\mathrm{T} \rho \underline{M}_j\ \mathrm{d}\Omega\ \ddot{a}_j + \int_\Omega \underline{B}_i^\mathrm{T} \underline{\sigma}\ \mathrm{d}\Omega = \int_\Gamma \underline{M}_i^\mathrm{T}\ \underline{t}\ \mathrm{d}\Gamma - \int_\Omega \underline{M}_i^\mathrm{T}\ \underline{b}\ \mathrm{d}\Omega
+```
+Finally, we insert the constitutive relationship, Hooke's law, ``\underline{\sigma} = \underline{\underline{D}}\ \underline{\varepsilon}``, in combination with using that
+```math
+\underline{\varepsilon} = \begin{bmatrix} \varepsilon_{11} \\ \varepsilon_{22} \\ 2\varepsilon_{12} \end{bmatrix} = \begin{bmatrix} \frac{\partial u_1}{\partial x_1} \\ \frac{\partial u_2}{\partial x_2}  \\ \frac{\partial u_1}{\partial x_2} + \frac{\partial u_2}{\partial x_1} \end{bmatrix} 
+= \sum_{i = 1}^{N_s} \begin{bmatrix} \frac{\partial \left[\underline{M}_i\right]_1}{\partial x_1} \\ \frac{\partial \left[\underline{M}_i\right]_2}{\partial x_2}  \\ \frac{\partial \left[\underline{M}_i\right]_1}{\partial x_2} + \frac{\partial \left[\underline{M}_i\right]_2}{\partial x_1} \end{bmatrix} a_i = \sum_{i = 1}^{N_s} \underline{B}_i a_i = \underline{B}_i a_i
+```
+we get
+```math
+\begin{align}
+\underbrace{\int_\Omega \underline{M}_i^\mathrm{T} \rho \underline{M}_j\ \mathrm{d}\Omega}_{M_{ij}}\ \ddot{a}_j + \underbrace{\int_\Omega \underline{B}_i^\mathrm{T} \underline{\underline{D}}\ \underline{B}_j\ \mathrm{d}\Omega}_{K_{ij}}\ a_j &= \underbrace{\int_\Gamma \underline{M}_i^\mathrm{T}\ \underline{t}\ \mathrm{d}\Gamma + \int_\Omega \underline{M}_i^\mathrm{T}\ \underline{b}\ \mathrm{d}\Omega}_{f_i} \\ 
+M_{ij} \ddot{a}_j + K_{ij} a_j &= f_i \\ 
+\underline{\underline{M}}\ \ddot{\underline{a}} + \underline{\underline{K}}\ \underline{a} &= \underline{f}
+\end{align}
+```
+In this course, we will only consider quasi-static problems, i.e. when ``\ddot{\underline{a}} = \underline{0}``, such that our problem becomes
+```math
+K_{ij} a_j = f_i, \quad \text{or}\quad 
+\underline{\underline{K}}\ \underline{a} = \underline{f}
+```
+!!! note "Vector-valued shape vs mass matrix"
+	Please do not mix the mass matrix, ``M_{ij}``, with the vector-valued shape functions ``\underline{M}_i(\underline{x})``. These are different things and not directly related! 
+
+"""
+
+# ╔═╡ cf0b8288-82b5-445a-aa27-76fbdeef35d8
+md"""
+### Construction of vector-valued shape functions
+The vector-valued shape functions, ``\underline{M}_i``, are defined based on our already defined scalar shape functions, ``N_i``, as 
+```math
+\underline{M}_{2i-1} = \begin{bmatrix} N_i(\underline{x}) \\ 0 \end{bmatrix}, \quad 
+\underline{M}_{2i} = \begin{bmatrix} 0 \\ N_i(\underline{x}) \end{bmatrix}
+```
+And consequently, we get the gradients of these as
+```math
+\frac{\partial \underline{M}_{2i-1}}{\partial \underline{x}} = \begin{bmatrix} \frac{\partial N_i}{\partial x_1} & 0 \\ 
+\frac{\partial N_i}{\partial x_2} & 0 \end{bmatrix}, \quad 
+\frac{\partial \underline{M}_{2i}}{\partial \underline{x}} = \begin{bmatrix} 
+0 & \frac{\partial N_i}{\partial x_1} \\ 
+0 & \frac{\partial N_i}{\partial x_2} \end{bmatrix}
+```
+And then using the definition of the ``\underline{B}_i`` vector, we get
+```math
+\underline{B}_{2i-1} = \begin{bmatrix}
+\frac{\partial N_i}{\partial x_1} \\ 0 \\ 
+\frac{\partial N_i}{\partial x_2} \end{bmatrix}, \quad 
+\underline{B}_{2i} = \begin{bmatrix}
+0 \\ \frac{\partial N_i}{\partial x_2} \\ 
+\frac{\partial N_i}{\partial x_1} \end{bmatrix}
+```
+You will implement this construction of vector-valued shape functions and their gradients as
+* `vectorize_shape_values`
+* `voigtize_shape_gradients`
+
+For the latter, the function `tovoigt_strain`, which converts a matrix, ``\partial \underline{M}_i / \partial \underline{x}`` to the voigt vector, ``\underline{B}_i``, can be useful! As usual, we will do all of this on the element numbering level, i.e. we work with ``\underline{B}_i^e`` and ``\underline{M}_i^e``. Furthermore, note that all the parametric mapping etc. is done before doing this construction, i.e. the workflow for a given quadrature point ``\underline{\xi}_q`` is,
+1. Calculate the scalar shape values, ``\hat{N}_i^e(\underline{\xi}_q)``
+2. Calculate the reference shape gradient values, ``\partial \hat{N}_i^e / \partial \underline{\xi}`` at ``\underline{\xi} = \underline{\xi}_q``. 
+3. Calculate the jacobian, ``\underline{\underline{J}} = \partial \underline{x}/\partial \underline{\xi}``
+4. Calculate the the total integration weight, ``w_q * \det(\underline{\underline{J}})``
+5. Map the gradients, ``\partial N^e_i / \partial \underline{x} = \underline{\underline{J}}^{-T} \partial \hat{N}_i^e / \partial \underline{\xi}``
+6. Construct the vectorized shape values, ``\underline{M}^e`` from ``N^e(\underline{\xi})`` using `vectorize_shape_values`
+7. Construct the voigtized shape gradients, ``\underline{B}^e``, from ``\partial N^e/\partial \underline{x}`` using `voigtize_shape_gradients`
+8. Calculate the contributions to the FE form (or similar for e.g. postprocessing)
+
+"""
+
+# ╔═╡ 72c42622-fa57-4020-aa51-77fd3bd9f79c
+md"""
+### Global and local numbering
+For scalar problems, we chose to use the global numbering scheme that the Degree of Freedom (DoF) number is the same as the node number. For vector-valued problems such as the mechanical equilibrium, where we look for the vector-valued displacement field, ``\underline{u}(\underline{x})``, we have `dim` (e.g. 2 in 2d) DoFs per node, and we cannot simply say DoF number = node number. So for an element with `num_element_nodes` nodes, we have `num_element_dofs = 2 * num_element_nodes` DoFs. As a convention, we get our element dofs, `edofs`, for an element with node number `enods` as
+```
+edofs_x = 2 * enods - 1;
+edofs_y = 2 * enods;
+edofs(1:2:num_element_dofs) = edofs_x;
+edofs(2:2:num_element_dofs) = edofs_y;
+```
+
+!!! note "Alternative convention"
+	The chosen convention is just one of many possible. An alternative, given `num_nodes` nodes in the mesh, that we will **not** use, is 
+	```
+	edofs_x = enods;
+	edofs_y = enods + num_nodes;
+	edofs(1:2:num_element_dofs) = edofs_x;
+	edofs(2:2:num_element_dofs) = edofs_y;
+	```
+	This will affect how we can translate from knowing the node number to knowing the DoF number of each component. For the remaining of the course, we will **not** use the `edofs_x = enods` and `edofs_y = enods + num_nodes` convention, but the `edofs_x = 2 * enods - 1` and `edofs_y = 2 * enods` convention!
+
+Using the convention `edofs_x = 2 * enods - 1` and `edofs_y = 2 * enods`, we can always get the DoF numbers for the x and y displacements from the node number, `nodenr` as 
+```
+xdof = 2 * nodenr - 1;
+ydof = 2 * nodenr;
+```
+"""
+
+# ╔═╡ 15b6bf2a-88a4-4782-9087-349a5e47f75b
+md"""
+### Dirichlet BC
+For the chosen numbering convention, we have the properties of shape function nr ``i``, ``\underline{N}_i(\underline{x})``, at node number ``j`` with coordinates ``\underline{x}_j``,
+```math
+\underline{M}_i(\underline{x}_j) = \left\lbrace \begin{matrix}
+[1, 0]^\mathrm{T}, & i = 2j - 1 \\
+[0, 1]^\mathrm{T}, & i = 2j\ \ \phantom{-1} \\
+[0, 0]^\mathrm{T}, & \text{else}\phantom{--..} % Ugly spacing hack...
+\end{matrix} \right.
+```
+
+This implies, that when we approximate a function as
+```math
+\underline{u}(\underline{x}) \approx \underline{u}_h(\underline{x}) = \sum_{i = 1}^{N_\mathrm{dofs}} \underline{M}_i(\underline{x}) a_i
+```
+we have that 
+```math
+\underline{u}_h(\underline{x}_j) = \begin{bmatrix} a_{2j-1} \\ a_{2j} \end{bmatrix}
+```
+So if want to prescribe the x-displacement components at the nodes `dbc_x_nodes` to `ux_c`, we can simply do
+```
+cdofs = 2 * dbc_x_nodes - 1;
+ac = ones(length(dbc_x_nodes), 1) * ux_c;
+```
+If we also want to prescribe the y displacements at the (possibly) different nodes `dbc_y_nodes` to `uy_c`, we can extend these vectors by
+```
+cdofs = [cdofs; 2 * dbc_y_nodes];
+ac = [ac; ones(length(dbc_y_nodes)) * uy_c];
+```
+If we have further constraints (e.g. with different constrained values), we can add them by further extending the vector. By knowing the node number, we can even insert constrained values that depend on the coordinates, e.g. let's say that we want to prescribe that ``u_1(\underline{x}) = x_2/10`` on the boundary ``\Gamma_\mathrm{right}`` with nodes `left_nodes`, then we can add this as
+```
+ux_left = node_coordinates(2, left_nodes);
+cdofs = [cdofs; 2 * left_nodes - 1];
+ac = [ac; ux_left]
+```
+Once we have built up all the constrained dofs into the vector `cdofs`, and the corresponding constrained values into `ac`, we can solve for the unknown dof-values, `af`, by doing,
+```
+fdofs = setdiff((1:ndofs)', cdofs)
+af = K(fdofs, fdofs) \ (f(fdofs) - K(fdofs, cdofs) * ac);
+```
+just as for scalar problems. 
+"""
+
+# ╔═╡ 23d40f9d-c661-4551-90a9-e815f9edfca6
+md"""
+### Neumann BC
+Just as for scalar problems, including the Neumann boundary condition requires calculating the contribution,
+```math
+f_i^\mathrm{NBC} = \int_{\Gamma_\mathrm{NBC}} \underline{M}_i^\mathrm{T}\ \underline{t}\ \mathrm{d}\Gamma
+```
+to the global load vector. Similar to the scalar case, we can split the integrals into known and unknown parts on the boundary, i.e.
+```math
+\int_{\Gamma} \underline{M}_i^\mathrm{T}\ \underline{t}\ \mathrm{d}\Gamma = \int_{\Gamma_\mathrm{NBC}} \underline{M}_i^\mathrm{T}\ \underline{t}_\mathrm{NBC}\ \mathrm{d}\Gamma + \int_{\Gamma_\mathrm{DBC}} \underline{M}_i^\mathrm{T}\ \underline{t}_\mathrm{DBC}\ \mathrm{d}\Gamma
+```
+where ``\underline{t}_\mathrm{NBC}`` is known and ``\underline{t}_\mathrm{DBC}`` is unknown. Here we make the split just based on the geometry, but in practice we can also have boundaries where we only know the ``x``-component of the traction but not the ``y``-component (i.e. we know the ``y``-component of the displacement). In practice, that is not a problem, since in that case we just set ``t_2 = 0`` when adding the Neumann BC, and solve using the ``y``-dofs as constrained. In the end, the application of Neumann BC thus requires us to evaluate the integral, 
+```math
+f_i^\mathrm{NBC} = \int_{\Gamma_\mathrm{NBC}} \underline{M}_i^\mathrm{T}\ \underline{t}\ \mathrm{d}\Gamma
+```
+and we will do this by taking the sum over all facets, just as for the scalar heat problem. The only difference introduced in the implementation is that the traction is now a vector instead of the scalar ``q_\mathrm{n}``. For convenience, we also define the `neumann_routine`s such that we can pass both a full traction, ``\underline{t}_\mathrm{f}``, a normal traction, ``t_\mathrm{n}``, such that we apply the total traction
+```math
+\underline{t} = \underline{t}_\mathrm{f} + t_\mathrm{n}\ \underline{n}
+```
+by using the normalized normal vector, ``\underline{n} = \underline{n}_\mathrm{w} / ||\underline{n}_\mathrm{n}||``. This simplifies applying e.g. a pressure load, where the traction is normal to the surface. Having calculated this, we can now simply use the same procedure as for scalar problems to approximate the integral numerically, although with the same adaptations as for the assembly of an element (i.e. calculating the vectorized shape values based on the scalar ones).
 """
 
 # ╔═╡ f61e8d2d-1842-4ba8-aff8-01f6b9ad9025
 md"""
-## L15: Postprocessing and Robin BC
+## L15a: Postprocessing
+Solving the boundary value problem implies knowing the dofs, ``a_i``, in the approximation ``\underline{u}(\underline{x}) \approx \underline{M}_i(\underline{x})a_i``. After this, we typically want to perform so-called postprocessing. Typically, we want to calculate the stress in our domain, or reaction forces. 
+
+### Calculating the stress
+When calculating the stress, we typically do this in the quadrature points. However, we can also calculate the stress at other points. A typical example that we will use in this course, is that independent of how many quadrature points we use when solving the problem, we sometimes just want to calculate the stress at the center of the element. To calculate the stress, we first need the strain. This we can approximate as 
+```math
+\underline{\varepsilon}(\underline{x}) \approx \underline{B}_i(\underline{x}) a_i
+```
+However, as usual we will use the local numbering working on the element level, i.e. 
+```math
+\underline{\varepsilon}(\underline{\xi}) \approx \underline{B}^e_i(\underline{\xi}) a_i^e
+```
+such that we can calculate this for the quadrature point ``\underline{\xi}_q`` (note that we don't need the weight ``w_q``, as we do not integrate something). Given the strain, we can then calculate the stress using Hooke's law with the suitable stiffness matrix, ``\underline{\underline{D}}``,
+```math
+\underline{\sigma} = \underline{\underline D}\ \underline{\varepsilon}
+```
+"""
+
+# ╔═╡ 33b6a299-29cc-44bf-9e9e-cba48d0b427d
+md"""
+### Calculating reaction forces
+Here, we are interested in calculating a component, ``k\in[1,2]``, of the reaction force, ``F_k``, on a part of the boundary, ``\Gamma_\mathrm{R}``, where we have applied Dirichlet BCs for component ``k``. So specifically, we are interested in calculating
+```math
+F_k = \int_{\Gamma_\mathrm{R}} t_k\ \mathrm{d}\Gamma
+```
+
+Similar to the scalar case, after solving the equation systems we know ``f_i`` for all ``i``, and we have
+```math
+\begin{align}
+f_i &= \int_\Omega \underline{M}_i(\underline{x})^\mathrm{T}\ \underline{b}\ \mathrm{d}\Omega + 
+\int_\Gamma \underline{M}_i(\underline{x})^\mathrm{T}\ \underline{t}\ \mathrm{d}\Gamma \\
+ &= \int_\Omega \underline{M}_i(\underline{x})^\mathrm{T}\ \underline{b}\ \mathrm{d}\Omega + 
+\int_{\Gamma_\mathrm{R}} \underline{M}_i(\underline{x})^\mathrm{T}\ \underline{t}\ \mathrm{d}\Gamma
+ + 
+\int_{\Gamma_\text{other}} \underline{M}_i(\underline{x})^\mathrm{T}\ \underline{t}\ \mathrm{d}\Gamma
+\end{align}
+```
+where ``\Gamma_\text{other}`` is the remaining of the boundary, i.e. ``\Gamma_\text{other} = \Gamma \setminus \Gamma_\mathrm{R}``. 
+
+As the scalar shape functions fulfill the following property,
+```math
+\sum_{i = 1}^{N_\mathrm{s}} N_i(\underline{x}) = 1 \quad \forall \underline{x}\in\Omega
+```
+the vectorized shape functions fullfill
+```math
+\sum_{i = 1}^{N_\mathrm{nodes}} \underline{M}_{2i-1}(\underline{x}) = \underline{e}_1 = \begin{bmatrix} 1 \\ 0 \end{bmatrix} \quad \forall \underline{x}\in\Omega, \quad 
+\sum_{i = 1}^{N_\mathrm{nodes}} \underline{M}_{2i}(\underline{x}) = \underline{e}_2 = \begin{bmatrix} 0 \\ 1 \end{bmatrix} \quad \forall \underline{x}\in\Omega, \quad 
+```
+for our numbering convention. 
+
+We also have that 
+```math
+N_i(\underline{x}) = 0\ \forall\ \underline{x}\in\Gamma_\mathrm{R}\quad \text{if}\quad \underline{x}_i \notin \Gamma_\mathrm{R}
+```
+This is the same as for the reaction flux earlier. For vector-valued problems this leads to 
+```math
+\underline{M}_{2i-1}(\underline{x}) = \underline{M}_{2i}(\underline{x}) = \underline{0}\ \forall\ \underline{x}\in\Gamma_\mathrm{R}\quad \text{if}\quad \underline{x}_i \notin \Gamma_\mathrm{R}
+```
+
+Together, this implies that
+```math
+\begin{align}
+F_1 &= \int_{\Gamma_\mathrm{R}} t_1\ \mathrm{d}\Gamma = \sum_{i \in \mathbb{R}} \int_{\Gamma_\mathrm{R}} \underline{M}_{2i-1}(\underline{x})^\mathrm{T}\ \underline{t}\ \mathrm{d}\Gamma \\
+F_2 &= \int_{\Gamma_\mathrm{R}} t_2\ \mathrm{d}\Gamma = \sum_{i \in \mathbb{R}} \int_{\Gamma_\mathrm{R}} \underline{M}_{2i}(\underline{x})^\mathrm{T}\ \underline{t}\ \mathrm{d}\Gamma 
+\end{align}
+```
+Inserting the known force vector, we get
+```math
+\begin{align}
+F_1 &= \sum_{i \in \mathbb{R}} \left[ f_{2i-1} - 
+\underbrace{\int_\Omega \underline{M}_{2i-1}(\underline{x})^\mathrm{T}\ \underline{b}\ \mathrm{d}\Omega -
+\int_{\Gamma_\text{other}} \underline{M}_{2i-1}(\underline{x})^\mathrm{T}\ \underline{t}\ \mathrm{d}\Gamma}_{f_{2i-1}^\mathrm{known}} \right]
+\\
+F_2 &= \sum_{i \in \mathbb{R}} \left[ f_{2i} - 
+\underbrace{\int_\Omega \underline{M}_{2i}(\underline{x})^\mathrm{T}\ \underline{b}\ \mathrm{d}\Omega -
+\int_{\Gamma_\text{other}} \underline{M}_{2i}(\underline{x})^\mathrm{T}\ \underline{t}\ \mathrm{d}\Gamma}_{f_{2i}^\mathrm{known}} \right]
+\end{align}
+```
+
+For mechanical problems, we will skip the complication of neighboring Dirichlet boundaries, and only consider cases when the traction on is known for nodes in ``\mathbb{R}`` on ``\Gamma_\text{other}``. Consequently, ``f_{2i-1}^\mathrm{known}`` and ``f_{2i}^\mathrm{known}`` are known after assembly. The reaction force in the ``x``-direction, `F1`, from the nodes `rnodes_x` where we have constrained the ``x``-displacements, and the reaction force in the ``y``-direction, `F2`, from the nodes `rnodes_y`, where we have constrained the ``y``-displacements, is then calculated as
+```
+[K, f_known] = calculate_matrix_and_vector(...) % Add all known contributions, 
+										   		% i.e. except unknown tractions
+a(cdofs) = ac; % Set constrained displacements
+a(fdofs) = K(fdofs, fdofs) \ (f_known(fdofs) - K(fdofs, cdofs) * ac);
+f(fdofs) = f_known(fdofs)
+f(cdofs) = K(cdofs, :) * a;
+rxdofs = 2 * rnodes_x - 1; 
+F1 = sum(f(rxdofs) - f_known(rxdofs));
+rydofs = 2 * rnodes_y; 
+F2 = sum(f(rydofs) - f_known(rydofs));
+```
+"""
+
+# ╔═╡ 85374012-787e-4ac2-8a20-cf584eb232bc
+md"""
+## L15b: Robin BC
+
 """
 
 # ╔═╡ 7e7cf116-f844-4345-bb00-e9829e6262be
@@ -2029,6 +2754,7 @@ PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 Ferrite = "c061ca5d-56c9-439f-9c0e-210fe06d3992"
+Format = "1fa38f19-a742-5d3f-a2b9-30dd87b9d5f8"
 LaTeXStrings = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
 PlutoTeachingTools = "661c6b06-c737-4d37-b85c-46df65de6f69"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
@@ -2037,6 +2763,7 @@ Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 [compat]
 CairoMakie = "~0.15.6"
 Ferrite = "~1.1.0"
+Format = "~1.3.7"
 LaTeXStrings = "~1.4.0"
 PlutoTeachingTools = "~0.4.6"
 PlutoUI = "~0.7.72"
@@ -2046,9 +2773,9 @@ PlutoUI = "~0.7.72"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.12.1"
+julia_version = "1.12.2"
 manifest_format = "2.0"
-project_hash = "3e77b724f1f6ec76c265ca194d0f1c0090a63c93"
+project_hash = "f46d55118c56508cc61007608b9f70b4fb6ac01e"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -2356,7 +3083,7 @@ version = "0.9.5"
 [[deps.Downloads]]
 deps = ["ArgTools", "FileWatching", "LibCURL", "NetworkOptions"]
 uuid = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
-version = "1.6.0"
+version = "1.7.0"
 
 [[deps.EarCut_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -2841,7 +3568,7 @@ version = "0.6.4"
 [[deps.LibCURL_jll]]
 deps = ["Artifacts", "LibSSH2_jll", "Libdl", "OpenSSL_jll", "Zlib_jll", "nghttp2_jll"]
 uuid = "deac9b47-8bc7-5906-a0fe-35ac56dc84c0"
-version = "8.11.1+1"
+version = "8.15.0+0"
 
 [[deps.LibGit2]]
 deps = ["LibGit2_jll", "NetworkOptions", "Printf", "SHA"]
@@ -3060,7 +3787,7 @@ version = "0.8.7+0"
 [[deps.OpenSSL_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "458c3c95-2e84-50aa-8efc-19380b2a3a95"
-version = "3.5.1+0"
+version = "3.5.4+0"
 
 [[deps.OpenSpecFun_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl"]
@@ -3691,9 +4418,9 @@ uuid = "1317d2d5-d96f-522e-a858-c73665f53c3e"
 version = "2022.0.0+1"
 
 [[deps.p7zip_jll]]
-deps = ["Artifacts", "Libdl"]
+deps = ["Artifacts", "CompilerSupportLibraries_jll", "Libdl"]
 uuid = "3f19e933-33d8-53b3-aaab-bd5110c3b7a0"
-version = "17.5.0+2"
+version = "17.7.0+0"
 
 [[deps.x264_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -3797,11 +4524,34 @@ version = "4.1.0+0"
 # ╟─af3043ce-2863-44d1-8e7e-db5465651c52
 # ╟─ef099aa1-dd65-468e-af83-632ef4e0b535
 # ╟─509c3307-b814-4da9-aecc-7adb47f8ec95
-# ╠═1f5672bc-28af-4ab7-b159-197ebf1e12a3
+# ╟─1f5672bc-28af-4ab7-b159-197ebf1e12a3
+# ╟─4167e37d-b9e2-484f-935c-729e0507630b
+# ╟─bebe6b31-f5f3-4719-b970-7f0583bc3674
+# ╟─0d31dfd6-df4b-4d08-a099-c69c2f2cb071
+# ╟─9459013d-e12c-4a82-9636-5ce912cccaf3
+# ╟─48ebeebf-8507-4941-9361-4a5b4fe601db
+# ╟─a9e3d9df-5ab5-4ced-a4e6-c61ce2e79046
+# ╟─75a525f7-e727-4c55-9fcd-a4335d97c432
+# ╟─dc02ad0d-058b-4369-be78-44039aa6e6b1
+# ╟─3345a144-6871-4b5b-b60b-db702770b30a
+# ╟─b5815863-6379-4711-a9fd-4cc69e8388e1
+# ╟─2ec78a16-f64e-4795-8305-d1a36899eb0a
+# ╟─6ccce575-56b5-4fc6-969e-b71348c44a81
+# ╟─20f8718e-60ea-415b-aab3-17a90c7f31c6
+# ╟─d7e7d8c5-0673-4c78-a484-4ee8116f1a76
+# ╟─7cec58dd-dd80-4ce5-b885-f1e2527e481d
 # ╟─f13237a3-1bf4-4ec9-a797-20458df04e52
-# ╠═5f0cf5a1-bd8c-4637-a28d-e4fd134254ab
-# ╠═976fbb59-1adf-4e95-84b8-75c7bf302917
-# ╠═f61e8d2d-1842-4ba8-aff8-01f6b9ad9025
+# ╟─e2f98607-c9a6-4a89-ba81-87b5a83cb789
+# ╟─5f0cf5a1-bd8c-4637-a28d-e4fd134254ab
+# ╟─976fbb59-1adf-4e95-84b8-75c7bf302917
+# ╟─f53dc83a-af49-4abc-90fc-4b5301987a0a
+# ╟─cf0b8288-82b5-445a-aa27-76fbdeef35d8
+# ╟─72c42622-fa57-4020-aa51-77fd3bd9f79c
+# ╟─15b6bf2a-88a4-4782-9087-349a5e47f75b
+# ╟─23d40f9d-c661-4551-90a9-e815f9edfca6
+# ╟─f61e8d2d-1842-4ba8-aff8-01f6b9ad9025
+# ╟─33b6a299-29cc-44bf-9e9e-cba48d0b427d
+# ╠═85374012-787e-4ac2-8a20-cf584eb232bc
 # ╟─7e7cf116-f844-4345-bb00-e9829e6262be
 # ╟─6bfc5b5e-cb6f-4e33-8b86-f99ffa713eb5
 # ╟─f436cc3b-49cb-4f7b-915e-e2c0fee4c2cb
