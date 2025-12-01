@@ -2576,7 +2576,65 @@ F2 = sum(f(rydofs) - f_known(rydofs));
 # ╔═╡ 85374012-787e-4ac2-8a20-cf584eb232bc
 md"""
 ## L15b: Robin BC
+So far, we have only discussed the standard boundary conditions,
+* Dirichlet BC: The primary field (e.g. temperature or displacement) is known
+* Neumann BC: The boundary flux or traction is known
 
+However, we can also have a mixed case. For thermal simulations, this corresponds to a heat transfer problem, where the boundary heat flux depends on the difference between the temperature in the structure and the surroundings, i.e. we have
+```math
+q_\mathrm{n} = \alpha_c [T_\mathrm{s} - T(\underline{x})]
+```
+where the heat convection coefficient, ``\alpha_c``, is a parameter that depends on the air flow (and thus if the interface is horizontal or vertial), ``T_\mathrm{s}`` is the known temperature of the surroundings, and ``T(\underline{x})`` is the temperature in the structure at the boundary. Starting from the FE form for the heat equation,
+```math
+\int_\Omega \mathrm{grad}(N_i(\underline{x}))^\mathrm{T} \underline{\underline{D}}\ \mathrm{grad}(N_j(\underline{x})) \ \mathrm{d}\Omega\ a_j = 
+\int_\Omega N_i(\underline{x})\ h\ \mathrm{d}\Omega - 
+\int_\Gamma N_i(\underline{x})\ q_\mathrm{n}\ \mathrm{d}\Gamma
+```
+we split the boundary terms into the Dirichlet, ``\Gamma_\mathrm{DBC}``, Neumann, ``\Gamma_{NBC}``, and Robin, ``\Gamma_\mathrm{RBC}``, parts. This gives,
+```math
+\begin{align}
+&\int_\Omega \mathrm{grad}(N_i(\underline{x}))^\mathrm{T} \underline{\underline{D}}\ \mathrm{grad}(N_j(\underline{x})) \ \mathrm{d}\Omega\ a_j 
+= 
+\int_\Omega N_i(\underline{x})\ h\ \mathrm{d}\Omega \\ 
+&- \int_{\Gamma_\mathrm{DBC}} N_i(\underline{x})\ q_\mathrm{n}^\mathrm{DBC}\ \mathrm{d}\Gamma
+- \int_{\Gamma_\mathrm{NBC}} N_i(\underline{x})\ q_\mathrm{n}^\mathrm{NBC}\ \mathrm{d}\Gamma
+- \int_{\Gamma_\mathrm{RBC}} N_i(\underline{x})\ \alpha_c[T_\mathrm{s} - T(\underline{x})]\ \mathrm{d}\Gamma
+\end{align}
+```
+where ``q_\mathrm{n}^\mathrm{NBC}`` is known while ``q_\mathrm{n}^\mathrm{DBC}`` is unknown. If we insert the FE approximation in the Robin BC, we get
+```math
+\int_{\Gamma_\mathrm{RBC}} N_i(\underline{x})\ \alpha_c[T_\mathrm{s} - T(\underline{x})]\ \mathrm{d}\Gamma = \int_{\Gamma_\mathrm{RBC}} N_i(\underline{x})\ \alpha_c T_\mathrm{s}\ \mathrm{d}\Gamma - \underbrace{\int_{\Gamma_\mathrm{RBC}} N_i(\underline{x})\ \alpha_c N_j(\underline{x})\ \mathrm{d}\Gamma}_{K_{ij}^c}\ a_j
+```
+and we notice that we get another contribution to the stiffness matrix, ``K_{ij}^c``. If we put all of this together in the complete FE form, we now have
+```math
+\begin{align}
+& \underbrace{\int_\Omega \mathrm{grad}(N_i(\underline{x}))^\mathrm{T} \underline{\underline{D}}\ \mathrm{grad}(N_j(\underline{x})) \ \mathrm{d}\Omega
++ \int_{\Gamma_\mathrm{RBC}} N_i(\underline{x})\ \alpha_c N_j(\underline{x})\ \mathrm{d}\Gamma}_{K_{ij} + K_{ij}^c}\ a_j \\ 
+&= \int_\Omega N_i(\underline{x})\ h\ \mathrm{d}\Omega - \int_{\Gamma_\mathrm{DBC}} N_i(\underline{x})\ q_\mathrm{n}^\mathrm{DBC}\ \mathrm{d}\Gamma
+- \int_{\Gamma_\mathrm{NBC}} N_i(\underline{x})\ q_\mathrm{n}^\mathrm{NBC}\ \mathrm{d}\Gamma
+- \int_{\Gamma_\mathrm{RBC}} N_i(\underline{x})\ \alpha_c\ T_\mathrm{s}\ \mathrm{d}\Gamma
+\end{align}
+```
+
+To implement Robin-type boundary conditions, we have to combine our knowledge for how to assemble the stiffness matrix (element routines) with how to integrate on the boundary (neumann routines). But the same applies: we want to calculate the local matrix,
+```math
+K_{ij}^{c,e} = \int_{\Gamma^f} N^e_i(\underline{x})\ \alpha_c N^e_j(\underline{x})\ \mathrm{d}\Gamma
+```
+and the local vector,
+```math
+f_i^e = \int_{\Gamma^f} N^e_i(\underline{x})\ \alpha_c\ T_\mathrm{s}\ \mathrm{d}\Gamma
+```
+for the facet ``f`` belonging to element ``e``.
+
+"""
+
+# ╔═╡ d8a8fc12-ea0c-4785-a34e-3797aeb6be0c
+md"""
+We can also introduce Robin BCs for the mechanical problem, this corresponds to an elastic bed, which can be useful for analyzing e.g. a beam lying on the ground. Here, we typically have the traction given as
+```math
+\underline{t} = -k\ \underline{u}
+```
+(although it could also be ``\underline{t} = k[\underline{u}_s - \underline{u}]``).
 """
 
 # ╔═╡ 7e7cf116-f844-4345-bb00-e9829e6262be
@@ -4551,7 +4609,8 @@ version = "4.1.0+0"
 # ╟─23d40f9d-c661-4551-90a9-e815f9edfca6
 # ╟─f61e8d2d-1842-4ba8-aff8-01f6b9ad9025
 # ╟─33b6a299-29cc-44bf-9e9e-cba48d0b427d
-# ╠═85374012-787e-4ac2-8a20-cf584eb232bc
+# ╟─85374012-787e-4ac2-8a20-cf584eb232bc
+# ╟─d8a8fc12-ea0c-4785-a34e-3797aeb6be0c
 # ╟─7e7cf116-f844-4345-bb00-e9829e6262be
 # ╟─6bfc5b5e-cb6f-4e33-8b86-f99ffa713eb5
 # ╟─f436cc3b-49cb-4f7b-915e-e2c0fee4c2cb
