@@ -1,0 +1,3 @@
+pluto-slider-server-environment/Manifest.toml
+static/*
+!static/index.html
