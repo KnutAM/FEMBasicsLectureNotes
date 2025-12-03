@@ -2477,6 +2477,12 @@ and we will do this by taking the sum over all facets, just as for the scalar he
 by using the normalized normal vector, ``\underline{n} = \underline{n}_\mathrm{w} / ||\underline{n}_\mathrm{n}||``. This simplifies applying e.g. a pressure load, where the traction is normal to the surface. Having calculated this, we can now simply use the same procedure as for scalar problems to approximate the integral numerically, although with the same adaptations as for the assembly of an element (i.e. calculating the vectorized shape values based on the scalar ones).
 """
 
+# ╔═╡ dec13400-5fc1-459f-8dc3-6034cce36a8c
+md"""
+### Symmetry BC
+TODO!
+"""
+
 # ╔═╡ f61e8d2d-1842-4ba8-aff8-01f6b9ad9025
 md"""
 ## L15a: Postprocessing
@@ -2806,6 +2812,19 @@ FootnotesNumbered()
 
 # ╔═╡ 87f373ca-78eb-4e1f-b539-33d3fd05ab21
 FootnotesInlineStyleBaseline()
+
+# ╔═╡ 1b9b3079-285e-445f-ba60-4b2a34f7722e
+begin
+	function showcase_mech_problem_setup()
+		grid = generate_grid(Quadrilateral, (10, 40)) # TODO: Create inp file with more interesting geometry
+		ip = Lagrange{RefQuadrilateral, 2}()^2
+		dh = close!(add!(DofHandler(grid), :u, ip));
+		ch = ConstraintHandler(dh)
+		add!(ch, Dirichlet(:u, getfacetset(grid, "left"), Returns(zero(Vec{2}))))
+		add!(ch, Dirichlet(:u, getfacetset(grid, "right"), (x, t) -> t, 2))
+		close!(ch)
+	end
+end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -4607,6 +4626,7 @@ version = "4.1.0+0"
 # ╟─72c42622-fa57-4020-aa51-77fd3bd9f79c
 # ╟─15b6bf2a-88a4-4782-9087-349a5e47f75b
 # ╟─23d40f9d-c661-4551-90a9-e815f9edfca6
+# ╟─dec13400-5fc1-459f-8dc3-6034cce36a8c
 # ╟─f61e8d2d-1842-4ba8-aff8-01f6b9ad9025
 # ╟─33b6a299-29cc-44bf-9e9e-cba48d0b427d
 # ╟─85374012-787e-4ac2-8a20-cf584eb232bc
@@ -4615,5 +4635,6 @@ version = "4.1.0+0"
 # ╟─6bfc5b5e-cb6f-4e33-8b86-f99ffa713eb5
 # ╟─f436cc3b-49cb-4f7b-915e-e2c0fee4c2cb
 # ╟─87f373ca-78eb-4e1f-b539-33d3fd05ab21
+# ╠═1b9b3079-285e-445f-ba60-4b2a34f7722e
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
