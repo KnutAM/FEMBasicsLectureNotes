@@ -20,7 +20,7 @@ begin
 	close!(ch)
 	cv = CellValues(QuadratureRule{RefQuadrilateral}(2), ip)
 	ds = DomainSpec(dh, nothing, cv)
-end;
+end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
