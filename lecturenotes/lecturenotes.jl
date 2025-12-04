@@ -44,7 +44,7 @@ end
 # ╔═╡ b92cd124-af25-11f0-b55d-45d572d7ae78
 md"""
 # Welcome to FEM Basics (VSM167)
-This material is provided under the MIT License: [license file](https://raw.githubusercontent.com/KnutAM/FEMBasicsLectureNotes/refs/heads/main/LICENSE). If you find any errors, please [open an issue on github](https://github.com/KnutAM/FEMBasicsLectureNotes/issues/new), or [send me an email](mailto:knut.andreas.meyer@chalmers.se).
+This material is provided under the MIT License: [license file](https://raw.githubusercontent.com/KnutAM/FEMBasicsLectureNotes/refs/heads/main/LICENSE). If you find any errors, please [open an issue on github](https://github.com/KnutAM/FEMBasicsLectureNotes/issues/new), or [send me an email](mailto:knut.andreas.meyer@chalmers.se). 
 """
 
 # ╔═╡ 49a9b55e-16ad-4d80-ac5d-cbf18cf717d7
