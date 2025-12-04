@@ -19,9 +19,13 @@ end
 # ╔═╡ 6b0414f5-13f1-4e68-944d-d29b18affaa3
 begin
 	import CairoMakie as Plt
+	import GeometryBasics as GB
 	using PlutoUI
 	using PlutoTeachingTools
 	using Ferrite
+	using FerriteAssembly
+	using MechanicalMaterialModels
+	using MaterialModelsBase
 	using LaTeXStrings
 	using Printf
 	using Format
@@ -1455,7 +1459,7 @@ md"""
 ### Neumann boundary conditions
 While we saw that Dirichlet BCs were basically equivalent to the 1D case, the Neumann BCs are quite a bit more tricky. Notice that we would like to add the contribution,
 ```math
-f_i^\mathrm{NBC} = \int_{\Gamma_\mathrm{NBC}} N_i(x) q_\mathrm{n}(x)\ \mathrm{d}\Gamma
+f_i^\mathrm{NBC} = -\int_{\Gamma_\mathrm{NBC}} N_i(x) q_\mathrm{n}(x)\ \mathrm{d}\Gamma
 ```
 due to the Neumann BCs on the boundary ``\Gamma_\mathrm{NBC}`` to the load vector ``f_i``. Hence, we need to integrate over the boundary facet: In 2d, this is an edge, and in 3d a face, but we will only consider 2d and edges. 
 
@@ -1788,8 +1792,6 @@ See presentations uploaded on Canvas
 
 # ╔═╡ 1f5672bc-28af-4ab7-b159-197ebf1e12a3
 md"""
-## L12a: Mechanical equilibrium
-So far, we have considered only the heat equation, now we will apply the same theory to mechanical equilibrium. To do so, we start by defining the stress according to *Cauchy's stress theorem* before determining the force and torque equilibrium conditions. In the 2nd half, L12b, we introduce linear elasticity for both 3d and 2d cases. 
 ### Cauchy's theorem
 
 #### The traction vector
@@ -2477,10 +2479,12 @@ and we will do this by taking the sum over all facets, just as for the scalar he
 by using the normalized normal vector, ``\underline{n} = \underline{n}_\mathrm{w} / ||\underline{n}_\mathrm{n}||``. This simplifies applying e.g. a pressure load, where the traction is normal to the surface. Having calculated this, we can now simply use the same procedure as for scalar problems to approximate the integral numerically, although with the same adaptations as for the assembly of an element (i.e. calculating the vectorized shape values based on the scalar ones).
 """
 
-# ╔═╡ dec13400-5fc1-459f-8dc3-6034cce36a8c
+# ╔═╡ c144eb46-727a-428c-b2a1-f7ce63f2be7a
 md"""
 ### Symmetry BC
-TODO!
+If **both** geometry and load is symmetric, we can apply symmetry boundary conditions. That is, the displacement perpendicular to the symmetry line is zero (i.e. zero Dirichlet) and there is zero shear tractions on the symmetry line (i.e. zero Neumann). In our `MATLAB` implementations, we will always have that the symmetry lines are aligned with the global coordinate system, such that we can apply these constraints to each component of the node displacements.
+
+To apply symmetry (or other Dirichlet) boundary conditions in different coordinate systems, we have to use so-called Affine constraints, which creates a coupling between degree's of freedom, but doing this in `MATLAB` is out of scope for this course. However, in the `Abaqus` implementation, you will use a local coordinate system to apply symmetry conditions on a slanted face. 
 """
 
 # ╔═╡ f61e8d2d-1842-4ba8-aff8-01f6b9ad9025
@@ -2813,17 +2817,93 @@ FootnotesNumbered()
 # ╔═╡ 87f373ca-78eb-4e1f-b539-33d3fd05ab21
 FootnotesInlineStyleBaseline()
 
-# ╔═╡ 1b9b3079-285e-445f-ba60-4b2a34f7722e
+# ╔═╡ 6444d515-be51-40d4-b088-fdca80a4ec72
 begin
-	function showcase_mech_problem_setup()
-		grid = generate_grid(Quadrilateral, (10, 40)) # TODO: Create inp file with more interesting geometry
+	tongonface(c::Union{Triangle, Quadrilateral}) = GB.NgonFace(Ferrite.get_node_ids(c))
+	topoint(n::Node{sdim}) where {sdim} = GB.Point{sdim}(get_node_coordinate(n))
+
+	function tomesh(grid::Ferrite.AbstractGrid)
+	    faces = map(tongonface, getcells(grid))
+	    vertices = map(topoint, getnodes(grid))
+	    return GB.Mesh(vertices, faces)
+	end
+end;
+
+# ╔═╡ cd3d341f-8517-44f9-add8-d844f2e5735a
+begin
+	function calculate_vonmises(m, _, ∇u, old)
+		σ, _, _ = material_response(m, symmetric(∇u), old)
+		return sqrt((3/2) * σ ⊡ dev(σ))
+	end
+		
+	function showcase_mech(t)
+		grid = generate_grid(Quadrilateral, (40, 10), zero(Vec{2}), Vec((4.0, 1.0))) # TODO: Create inp file with more interesting geometry
 		ip = Lagrange{RefQuadrilateral, 2}()^2
-		dh = close!(add!(DofHandler(grid), :u, ip));
+		dh = close!(add!(DofHandler(grid), :u, ip))
+		m = ReducedStressState(PlaneStrain(), LinearElastic(;E = 80.e3, ν = 0.2))
+		qr = QuadratureRule{RefQuadrilateral}(2)
+		cv = CellValues(qr, ip)
+		db = setup_domainbuffer(DomainSpec(dh, m, cv))
+		K = allocate_matrix(dh)
+		f = zeros(ndofs(dh))
 		ch = ConstraintHandler(dh)
 		add!(ch, Dirichlet(:u, getfacetset(grid, "left"), Returns(zero(Vec{2}))))
 		add!(ch, Dirichlet(:u, getfacetset(grid, "right"), (x, t) -> t, 2))
 		close!(ch)
+		work!(start_assemble(K, f), db);
+		proj = L2Projector(grid)
+		add!(proj, 1:getncells(grid), Lagrange{RefQuadrilateral, 1}(); qr_rhs = qr)
+		close!(proj)
+		qpeval = QuadPointEvaluator{Float64}(db, calculate_vonmises)
+		mesh = tomesh(grid)
+
+		fill!(f, 0)
+		update!(ch, t)
+		apply!(K, f, ch)
+		a = K \ f;
+		work!(qpeval, db; a)
+		σvm = project(proj, qpeval.data)
+		σvm_nodes = evaluate_at_grid_nodes(proj, σvm)
+		u_nodes = evaluate_at_grid_nodes(dh, a, :u)
+		map!(mesh.position, mesh.position, u_nodes) do X, u
+			X + GB.Vec2(u)
+		end
+		return mesh, σvm_nodes
 	end
+	function showcase_mech_setup_plot()
+		fig = Plt.Figure(size = (800, 400))
+		ax = Plt.Axis(fig[1,1]; aspect = Plt.DataAspect(), xlabel = "x [mm]", ylabel = "y [mm]")
+		Plt.xlims!(ax, -0.25, 4.25)
+		Plt.ylims!(ax, -0.6, 1.6)
+		mesh, σvm_nodes = showcase_mech(0.0)
+		
+		mesh_plt = Plt.mesh!(ax, mesh, color = σvm_nodes, colorrange = (0, 5000))
+		wire_plt = Plt.wireframe!(ax, mesh; color = :black, linewidth = 1)
+		Plt.Colorbar(fig[1,2], mesh_plt; colorrange = (0, 5000), label = "von Mises stress [MPa]")
+		return fig, (; mesh_plt, wire_plt)
+	end
+	function showcase_mech_update_plot!(pltdata; t)
+		mesh, σvm_nodes = showcase_mech(t)
+		Plt.update!(pltdata.mesh_plt; arg1 = mesh, color = σvm_nodes)
+		Plt.update!(pltdata.wire_plt; arg1 = mesh)
+	end
+	showcase_mech_fig, showcase_mech_data = showcase_mech_setup_plot()
+	mech_showcase_load_slider = @bind mech_showcase_load Slider(-0.5:0.1:0.5; default = 0, show_value = true)
+	
+	md"""
+	## L12a: Mechanical equilibrium
+	So far, we have considered only the heat equation, now we will apply the same theory to mechanical equilibrium. To do so, we start by defining the stress according to *Cauchy's stress theorem* before determining the force and torque equilibrium conditions. In the 2nd half, L12b, we introduce linear elasticity for both 3d and 2d cases.
+	
+	But first, let's look at the result of a mechanical simulation with linear elasticity, and you can explore how the boundary conditions affect the effective (von Mises) stress response:
+	
+	Prescribed ``u_2`` on right boundary: $(mech_showcase_load_slider)
+	"""
+end
+
+# ╔═╡ ef6fe929-9305-4a9a-84c4-cfbd601a91c4
+begin
+	showcase_mech_update_plot!(showcase_mech_data; t = mech_showcase_load)
+	showcase_mech_fig
 end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
@@ -2831,17 +2911,25 @@ PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 Ferrite = "c061ca5d-56c9-439f-9c0e-210fe06d3992"
+FerriteAssembly = "fd21fc07-c509-4fe1-9468-19963fd5935d"
 Format = "1fa38f19-a742-5d3f-a2b9-30dd87b9d5f8"
+GeometryBasics = "5c1252a2-5f33-56bf-86c9-59e7332b4326"
 LaTeXStrings = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
+MaterialModelsBase = "af893363-701d-44dc-8b1e-d9a2c129bfc9"
+MechanicalMaterialModels = "b3282f9b-607f-4337-ab95-e5488ab5652c"
 PlutoTeachingTools = "661c6b06-c737-4d37-b85c-46df65de6f69"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 
 [compat]
-CairoMakie = "~0.15.6"
-Ferrite = "~1.1.0"
+CairoMakie = "~0.15.7"
+Ferrite = "~1.2.0"
+FerriteAssembly = "~0.3.7"
 Format = "~1.3.7"
+GeometryBasics = "~0.5.10"
 LaTeXStrings = "~1.4.0"
+MaterialModelsBase = "~0.3.1"
+MechanicalMaterialModels = "~0.3.0"
 PlutoTeachingTools = "~0.4.6"
 PlutoUI = "~0.7.72"
 """
@@ -2852,7 +2940,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.12.2"
 manifest_format = "2.0"
-project_hash = "f46d55118c56508cc61007608b9f70b4fb6ac01e"
+project_hash = "9ee2a05719d0613131abccfdc06562be9a018858"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -2974,9 +3062,9 @@ version = "1.1.1"
 
 [[deps.CairoMakie]]
 deps = ["CRC32c", "Cairo", "Cairo_jll", "Colors", "FileIO", "FreeType", "GeometryBasics", "LinearAlgebra", "Makie", "PrecompileTools"]
-git-tree-sha1 = "f8caabc5a1c1fb88bcbf9bc4078e5656a477afd0"
+git-tree-sha1 = "1778fd03576b0b6f88d0eafe89c54a3fb8df96a3"
 uuid = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
-version = "0.15.6"
+version = "0.15.7"
 
 [[deps.Cairo_jll]]
 deps = ["Artifacts", "Bzip2_jll", "CompilerSupportLibraries_jll", "Fontconfig_jll", "FreeType2_jll", "Glib_jll", "JLLWrappers", "LZO_jll", "Libdl", "Pixman_jll", "Xorg_libXext_jll", "Xorg_libXrender_jll", "Zlib_jll", "libpng_jll"]
@@ -3061,9 +3149,9 @@ version = "1.3.0+1"
 
 [[deps.ComputePipeline]]
 deps = ["Observables", "Preferences"]
-git-tree-sha1 = "cb1299fee09da21e65ec88c1ff3a259f8d0b5802"
+git-tree-sha1 = "21f3ae106d1dcc20a66e96366012f7289ebba498"
 uuid = "95dc2771-c249-4cd0-9c9f-1f3b4330693c"
-version = "0.1.4"
+version = "0.1.5"
 
 [[deps.ConstructionBase]]
 git-tree-sha1 = "b4b092499347b18a015186eae3042f72267106cb"
@@ -3088,9 +3176,9 @@ version = "1.16.0"
 
 [[deps.DataStructures]]
 deps = ["OrderedCollections"]
-git-tree-sha1 = "6c72198e6a101cccdd4c9731d3985e904ba26037"
+git-tree-sha1 = "e357641bb3e0638d353c4b29ea0e40ea644066a6"
 uuid = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
-version = "0.19.1"
+version = "0.19.3"
 
 [[deps.DataValueInterfaces]]
 git-tree-sha1 = "bfc1187b79289637fa0ef6d4436ebdfe6905cbd6"
@@ -3104,9 +3192,9 @@ version = "1.11.0"
 
 [[deps.DelaunayTriangulation]]
 deps = ["AdaptivePredicates", "EnumX", "ExactPredicates", "Random"]
-git-tree-sha1 = "5620ff4ee0084a6ab7097a27ba0c19290200b037"
+git-tree-sha1 = "783b21581a051ac91a3921ee37e26a23ed7f57a6"
 uuid = "927a84f5-c5f4-47a5-9785-b46e178433df"
-version = "1.6.4"
+version = "1.6.5"
 
 [[deps.DiffResults]]
 deps = ["StaticArraysCore"]
@@ -3192,9 +3280,9 @@ version = "0.1.6"
 
 [[deps.FFMPEG_jll]]
 deps = ["Artifacts", "Bzip2_jll", "FreeType2_jll", "FriBidi_jll", "JLLWrappers", "LAME_jll", "Libdl", "Ogg_jll", "OpenSSL_jll", "Opus_jll", "PCRE2_jll", "Zlib_jll", "libaom_jll", "libass_jll", "libfdk_aac_jll", "libvorbis_jll", "x264_jll", "x265_jll"]
-git-tree-sha1 = "eaa040768ea663ca695d442be1bc97edfe6824f2"
+git-tree-sha1 = "3a948313e7a41eb1db7a1e733e6335f17b4ab3c4"
 uuid = "b22a6f82-2f65-5046-a5b2-351ab43fb4e5"
-version = "6.1.3+0"
+version = "7.1.1+0"
 
 [[deps.FFTW]]
 deps = ["AbstractFFTs", "FFTW_jll", "Libdl", "LinearAlgebra", "MKL_jll", "Preferences", "Reexport"]
@@ -3210,17 +3298,25 @@ version = "3.3.11+0"
 
 [[deps.Ferrite]]
 deps = ["EnumX", "ForwardDiff", "LinearAlgebra", "NearestNeighbors", "OrderedCollections", "Preferences", "Reexport", "SparseArrays", "StaticArrays", "Tensors", "WriteVTK"]
-git-tree-sha1 = "569ab58080263a9e8f7870e093817e3d8edafcc7"
+git-tree-sha1 = "26e13c8e1ed9df75129be2e22409e93ba5565ce1"
 uuid = "c061ca5d-56c9-439f-9c0e-210fe06d3992"
-version = "1.1.0"
+version = "1.2.0"
 
     [deps.Ferrite.extensions]
     FerriteBlockArrays = "BlockArrays"
     FerriteMetis = "Metis"
+    FerriteSparseMatrixCSR = "SparseMatricesCSR"
 
     [deps.Ferrite.weakdeps]
     BlockArrays = "8e7c35d0-a365-5155-bbbb-fb81a777f24e"
     Metis = "2679e427-3c69-5b7f-982b-ece356f1e94b"
+    SparseMatricesCSR = "a0a7dd2c-ebf4-11e9-1f05-cf50bc540ca1"
+
+[[deps.FerriteAssembly]]
+deps = ["ConstructionBase", "Ferrite", "ForwardDiff", "MaterialModelsBase"]
+git-tree-sha1 = "755be5aa347d806f665ee5a076258baba0b56ea8"
+uuid = "fd21fc07-c509-4fe1-9468-19963fd5935d"
+version = "0.3.7"
 
 [[deps.FileIO]]
 deps = ["Pkg", "Requires", "UUIDs"]
@@ -3235,10 +3331,20 @@ version = "1.17.1"
     HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
 
 [[deps.FilePaths]]
-deps = ["FilePathsBase", "MacroTools", "Reexport", "Requires"]
-git-tree-sha1 = "919d9412dbf53a2e6fe74af62a73ceed0bce0629"
+deps = ["FilePathsBase", "MacroTools", "Reexport"]
+git-tree-sha1 = "a1b2fbfe98503f15b665ed45b3d149e5d8895e4c"
 uuid = "8fc22ac5-c921-52a6-82fd-178b2807b824"
-version = "0.8.3"
+version = "0.9.0"
+
+    [deps.FilePaths.extensions]
+    FilePathsGlobExt = "Glob"
+    FilePathsURIParserExt = "URIParser"
+    FilePathsURIsExt = "URIs"
+
+    [deps.FilePaths.weakdeps]
+    Glob = "c27321d9-0574-5035-807b-f59d2c89b15c"
+    URIParser = "30578b45-9adc-5946-b283-645ec420af67"
+    URIs = "5c2747f8-b7ea-4ff2-ba2e-563bfd36b1d4"
 
 [[deps.FilePathsBase]]
 deps = ["Compat", "Dates"]
@@ -3257,9 +3363,9 @@ version = "1.11.0"
 
 [[deps.FillArrays]]
 deps = ["LinearAlgebra"]
-git-tree-sha1 = "173e4d8f14230a7523ae11b9a3fa9edb3e0efd78"
+git-tree-sha1 = "5bfcd42851cf2f1b303f51525a54dc5e98d408a3"
 uuid = "1a297f60-69ca-5386-bcde-b61e274b549b"
-version = "1.14.0"
+version = "1.15.0"
 weakdeps = ["PDMats", "SparseArrays", "Statistics"]
 
     [deps.FillArrays.extensions]
@@ -3286,9 +3392,9 @@ version = "1.3.7"
 
 [[deps.ForwardDiff]]
 deps = ["CommonSubexpressions", "DiffResults", "DiffRules", "LinearAlgebra", "LogExpFunctions", "NaNMath", "Preferences", "Printf", "Random", "SpecialFunctions"]
-git-tree-sha1 = "ba6ce081425d0afb2bedd00d9884464f764a9225"
+git-tree-sha1 = "cd33c7538e68650bd0ddbb3f5bd50a4a0fa95b50"
 uuid = "f6369f11-7733-5829-9624-2563aa707210"
-version = "1.2.2"
+version = "1.3.0"
 weakdeps = ["StaticArrays"]
 
     [deps.ForwardDiff.extensions]
@@ -3477,9 +3583,9 @@ weakdeps = ["ForwardDiff", "Unitful"]
 
 [[deps.IntervalArithmetic]]
 deps = ["CRlibm", "MacroTools", "OpenBLASConsistentFPCSR_jll", "Printf", "Random", "RoundingEmulator"]
-git-tree-sha1 = "bf0210c01fb7d67c31fed97d7c1d1716b98ea689"
+git-tree-sha1 = "02b61501dbe6da3b927cc25dacd7ce32390ee970"
 uuid = "d1acc4aa-44c8-5952-acd4-ba5d80a2a253"
-version = "1.0.1"
+version = "1.0.2"
 
     [deps.IntervalArithmetic.extensions]
     IntervalArithmeticArblibExt = "Arblib"
@@ -3500,9 +3606,9 @@ version = "1.0.1"
     SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 
 [[deps.IntervalSets]]
-git-tree-sha1 = "5fbb102dcb8b1a858111ae81d56682376130517d"
+git-tree-sha1 = "d966f85b3b7a8e49d034d27a189e9a4874b4391a"
 uuid = "8197267c-284f-5f27-9208-e0e47529a953"
-version = "0.7.11"
+version = "0.7.13"
 
     [deps.IntervalSets.extensions]
     IntervalSetsRandomExt = "Random"
@@ -3751,9 +3857,15 @@ version = "0.5.16"
 
 [[deps.Makie]]
 deps = ["Animations", "Base64", "CRC32c", "ColorBrewer", "ColorSchemes", "ColorTypes", "Colors", "ComputePipeline", "Contour", "Dates", "DelaunayTriangulation", "Distributions", "DocStringExtensions", "Downloads", "FFMPEG_jll", "FileIO", "FilePaths", "FixedPointNumbers", "Format", "FreeType", "FreeTypeAbstraction", "GeometryBasics", "GridLayoutBase", "ImageBase", "ImageIO", "InteractiveUtils", "Interpolations", "IntervalSets", "InverseFunctions", "Isoband", "KernelDensity", "LaTeXStrings", "LinearAlgebra", "MacroTools", "Markdown", "MathTeXEngine", "Observables", "OffsetArrays", "PNGFiles", "Packing", "Pkg", "PlotUtils", "PolygonOps", "PrecompileTools", "Printf", "REPL", "Random", "RelocatableFolders", "Scratch", "ShaderAbstractions", "Showoff", "SignedDistanceFields", "SparseArrays", "Statistics", "StatsBase", "StatsFuns", "StructArrays", "TriplotBase", "UnicodeFun", "Unitful"]
-git-tree-sha1 = "368542cde25d381e44d84c3c4209764f05f4ef19"
+git-tree-sha1 = "7e6151c8432b91e76d9f9bc3adc6bbaecd00ec0a"
 uuid = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
-version = "0.24.6"
+version = "0.24.7"
+
+    [deps.Makie.extensions]
+    MakieDynamicQuantitiesExt = "DynamicQuantities"
+
+    [deps.Makie.weakdeps]
+    DynamicQuantities = "06fc5a27-2a28-4c7c-a15d-362465fb6821"
 
 [[deps.MappedArrays]]
 git-tree-sha1 = "2dab0221fe2b0f2cb6754eaa743cc266339f527e"
@@ -3765,11 +3877,23 @@ deps = ["Base64", "JuliaSyntaxHighlighting", "StyledStrings"]
 uuid = "d6f4376e-aef5-505a-96c1-9c027394607a"
 version = "1.11.0"
 
+[[deps.MaterialModelsBase]]
+deps = ["ForwardDiff", "StaticArrays", "Tensors"]
+git-tree-sha1 = "0f53bc668749dce2b5e79a0b38a46bd2ebf2f4e9"
+uuid = "af893363-701d-44dc-8b1e-d9a2c129bfc9"
+version = "0.3.1"
+
 [[deps.MathTeXEngine]]
 deps = ["AbstractTrees", "Automa", "DataStructures", "FreeTypeAbstraction", "GeometryBasics", "LaTeXStrings", "REPL", "RelocatableFolders", "UnicodeFun"]
-git-tree-sha1 = "a370fef694c109e1950836176ed0d5eabbb65479"
+git-tree-sha1 = "7eb8cdaa6f0e8081616367c10b31b9d9b34bb02a"
 uuid = "0a4f8689-d25c-4efe-a92b-7142dfc1aa53"
-version = "0.6.6"
+version = "0.6.7"
+
+[[deps.MechanicalMaterialModels]]
+deps = ["ForwardDiff", "LinearAlgebra", "MaterialModelsBase", "Newton", "StaticArrays", "Tensors"]
+git-tree-sha1 = "b224b75af462aa99995dbe0d118d85063cbbf347"
+uuid = "b3282f9b-607f-4337-ab95-e5488ab5652c"
+version = "0.3.0"
 
 [[deps.Missings]]
 deps = ["DataAPI"]
@@ -3799,9 +3923,9 @@ version = "1.1.3"
 
 [[deps.NearestNeighbors]]
 deps = ["Distances", "StaticArrays"]
-git-tree-sha1 = "ca7e18198a166a1f3eb92a3650d53d94ed8ca8a1"
+git-tree-sha1 = "e45bb6034fdef63d0c49b82ba9b889215bf8b344"
 uuid = "b8a86587-4115-5ab1-83bc-aa920d37bbce"
-version = "0.4.22"
+version = "0.4.24"
 
 [[deps.Netpbm]]
 deps = ["FileIO", "ImageCore", "ImageMetadata"]
@@ -3812,6 +3936,18 @@ version = "1.1.1"
 [[deps.NetworkOptions]]
 uuid = "ca575930-c2e3-43a9-ace4-1e988b2c1908"
 version = "1.3.0"
+
+[[deps.Newton]]
+deps = ["DiffResults", "ForwardDiff", "LinearAlgebra", "Preferences", "Printf", "StaticArrays", "Tensors"]
+git-tree-sha1 = "ff2f9e38116d816f44706c0c47686eaa00f8877a"
+uuid = "83aa5b51-0588-403c-85e4-434ec185aae7"
+version = "0.2.2"
+
+    [deps.Newton.extensions]
+    RecursiveFactorizationExt = "RecursiveFactorization"
+
+    [deps.Newton.weakdeps]
+    RecursiveFactorization = "f2c3362d-daeb-58d1-803e-2bc74f2840b4"
 
 [[deps.Observables]]
 git-tree-sha1 = "7438a59546cf62428fc9d1bc94729146d37a7225"
@@ -3890,9 +4026,13 @@ version = "10.44.0+1"
 
 [[deps.PDMats]]
 deps = ["LinearAlgebra", "SparseArrays", "SuiteSparse"]
-git-tree-sha1 = "f07c06228a1c670ae4c87d1276b92c7c597fdda0"
+git-tree-sha1 = "d922b4d80d1e12c658da7785e754f4796cc1d60d"
 uuid = "90014a1f-27ba-587c-ab20-58faa44d9150"
-version = "0.11.35"
+version = "0.11.36"
+weakdeps = ["StatsBase"]
+
+    [deps.PDMats.extensions]
+    StatsBaseExt = "StatsBase"
 
 [[deps.PNGFiles]]
 deps = ["Base64", "CEnum", "ImageCore", "IndirectArrays", "OffsetArrays", "libpng_jll"]
@@ -3914,9 +4054,9 @@ version = "0.5.12"
 
 [[deps.Pango_jll]]
 deps = ["Artifacts", "Cairo_jll", "Fontconfig_jll", "FreeType2_jll", "FriBidi_jll", "Glib_jll", "HarfBuzz_jll", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "1f7f9bbd5f7a2e5a9f7d96e51c9754454ea7f60b"
+git-tree-sha1 = "0662b083e11420952f2e62e17eddae7fc07d5997"
 uuid = "36c8627f-9965-5494-a995-c6b170f724f3"
-version = "1.56.4+0"
+version = "1.57.0+0"
 
 [[deps.Parsers]]
 deps = ["Dates", "PrecompileTools", "UUIDs"]
@@ -3947,9 +4087,9 @@ version = "0.3.3"
 
 [[deps.PlotUtils]]
 deps = ["ColorSchemes", "Colors", "Dates", "PrecompileTools", "Printf", "Random", "Reexport", "StableRNGs", "Statistics"]
-git-tree-sha1 = "3ca9a356cd2e113c420f2c13bea19f8d3fb1cb18"
+git-tree-sha1 = "26ca162858917496748aad52bb5d3be4d26a228a"
 uuid = "995b91a9-d308-5afd-9ec6-746e21dbc043"
-version = "1.4.3"
+version = "1.4.4"
 
 [[deps.PlutoTeachingTools]]
 deps = ["Downloads", "HypertextLiteral", "Latexify", "Markdown", "PlutoUI"]
@@ -3970,9 +4110,9 @@ version = "0.1.2"
 
 [[deps.PrecompileTools]]
 deps = ["Preferences"]
-git-tree-sha1 = "5aa36f7049a63a1528fe8f7c3f2113413ffd4e1f"
+git-tree-sha1 = "07a921781cab75691315adc645096ed5e370cb77"
 uuid = "aea7be01-6a6a-4083-8856-8a6e6704d82a"
-version = "1.2.1"
+version = "1.3.3"
 
 [[deps.Preferences]]
 deps = ["TOML"]
@@ -4155,9 +4295,9 @@ weakdeps = ["ChainRulesCore"]
 
 [[deps.StableRNGs]]
 deps = ["Random"]
-git-tree-sha1 = "95af145932c2ed859b63329952ce8d633719f091"
+git-tree-sha1 = "4f96c596b8c8258cc7d3b19797854d368f243ddc"
 uuid = "860ef19b-820b-49d6-a774-d7a799459cd3"
-version = "1.0.3"
+version = "1.0.4"
 
 [[deps.StackViews]]
 deps = ["OffsetArrays"]
@@ -4193,15 +4333,15 @@ weakdeps = ["SparseArrays"]
 
 [[deps.StatsAPI]]
 deps = ["LinearAlgebra"]
-git-tree-sha1 = "9d72a13a3f4dd3795a195ac5a44d7d6ff5f552ff"
+git-tree-sha1 = "178ed29fd5b2a2cfc3bd31c13375ae925623ff36"
 uuid = "82ae8749-77ed-4fe6-ae5f-f523153014b0"
-version = "1.7.1"
+version = "1.8.0"
 
 [[deps.StatsBase]]
 deps = ["AliasTables", "DataAPI", "DataStructures", "LinearAlgebra", "LogExpFunctions", "Missings", "Printf", "Random", "SortingAlgorithms", "SparseArrays", "Statistics", "StatsAPI"]
-git-tree-sha1 = "a136f98cefaf3e2924a66bd75173d1c891ab7453"
+git-tree-sha1 = "064b532283c97daae49e544bb9cb413c26511f8c"
 uuid = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
-version = "0.34.7"
+version = "0.34.8"
 
 [[deps.StatsFuns]]
 deps = ["HypergeometricFunctions", "IrrationalConstants", "LogExpFunctions", "Reexport", "Rmath", "SpecialFunctions"]
@@ -4299,9 +4439,9 @@ uuid = "3bb67fe8-82b1-5028-8e26-92a6c54297fa"
 version = "0.11.3"
 
 [[deps.Tricks]]
-git-tree-sha1 = "372b90fe551c019541fafc6ff034199dc19c8436"
+git-tree-sha1 = "311349fd1c93a31f783f977a71e8b062a57d4101"
 uuid = "410a4b4d-49e4-4fbc-ab6d-cb71b17b3775"
-version = "0.1.12"
+version = "0.1.13"
 
 [[deps.TriplotBase]]
 git-tree-sha1 = "4d4ed7f294cda19382ff7de4c137d24d16adc89b"
@@ -4601,7 +4741,9 @@ version = "4.1.0+0"
 # ╟─af3043ce-2863-44d1-8e7e-db5465651c52
 # ╟─ef099aa1-dd65-468e-af83-632ef4e0b535
 # ╟─509c3307-b814-4da9-aecc-7adb47f8ec95
-# ╟─1f5672bc-28af-4ab7-b159-197ebf1e12a3
+# ╟─cd3d341f-8517-44f9-add8-d844f2e5735a
+# ╟─ef6fe929-9305-4a9a-84c4-cfbd601a91c4
+# ╠═1f5672bc-28af-4ab7-b159-197ebf1e12a3
 # ╟─4167e37d-b9e2-484f-935c-729e0507630b
 # ╟─bebe6b31-f5f3-4719-b970-7f0583bc3674
 # ╟─0d31dfd6-df4b-4d08-a099-c69c2f2cb071
@@ -4626,7 +4768,7 @@ version = "4.1.0+0"
 # ╟─72c42622-fa57-4020-aa51-77fd3bd9f79c
 # ╟─15b6bf2a-88a4-4782-9087-349a5e47f75b
 # ╟─23d40f9d-c661-4551-90a9-e815f9edfca6
-# ╟─dec13400-5fc1-459f-8dc3-6034cce36a8c
+# ╟─c144eb46-727a-428c-b2a1-f7ce63f2be7a
 # ╟─f61e8d2d-1842-4ba8-aff8-01f6b9ad9025
 # ╟─33b6a299-29cc-44bf-9e9e-cba48d0b427d
 # ╟─85374012-787e-4ac2-8a20-cf584eb232bc
@@ -4635,6 +4777,6 @@ version = "4.1.0+0"
 # ╟─6bfc5b5e-cb6f-4e33-8b86-f99ffa713eb5
 # ╟─f436cc3b-49cb-4f7b-915e-e2c0fee4c2cb
 # ╟─87f373ca-78eb-4e1f-b539-33d3fd05ab21
-# ╠═1b9b3079-285e-445f-ba60-4b2a34f7722e
+# ╟─6444d515-be51-40d4-b088-fdca80a4ec72
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
