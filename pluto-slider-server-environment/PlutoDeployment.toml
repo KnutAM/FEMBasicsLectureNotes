@@ -1,4 +1,4 @@
-# [Export]
+[Export]
 # baked_notebookfile = true
 enabled = true
 output_dir = "static"
