@@ -561,7 +561,7 @@ To derive the strong form of the heat equation, we then consider the grey segmen
 """
 
 # ╔═╡ 6e4845f2-a984-43f0-9ef6-39f868ed9e20
-LocalResource(joinpath(@__DIR__, "heatequation_viapdf.svg"))
+LocalResource("heatequation_viapdf.svg")
 
 # ╔═╡ 8fffc673-54a3-4c5a-bcae-e4af09cab9bf
 md"""
@@ -770,7 +770,7 @@ Before discussing this further, let's discuss the mesh data structure, consideri
 """
 
 # ╔═╡ 9b75b720-0924-4933-9e60-3a0662dfeea7
-LocalResource(joinpath(@__DIR__, "mesh_1d_viapdf.svg"))
+LocalResource("mesh_1d_viapdf.svg")
 
 # ╔═╡ de47e61e-f6db-42b2-96a7-8cd8f31d8825
 md"""
@@ -900,7 +900,7 @@ in a 2D body with thickness ``t``, containing a the blue rectangle with volume `
 """
 
 # ╔═╡ 58c1a7d8-03fb-409d-8589-46d2fa597f82
-LocalResource(joinpath(@__DIR__, "divergence_body_viapdf.svg"))
+LocalResource("divergence_body_viapdf.svg")
 
 # ╔═╡ 8786dc4e-f7f4-4ccc-85f5-5302988c696c
 md"""
@@ -952,7 +952,7 @@ We denote the full body from above ``\Omega``, and its boundary ``\Gamma``. Then
 """
 
 # ╔═╡ 340f8448-6db6-404f-a7ea-192aa339c286
-LocalResource(joinpath(@__DIR__, "divergencethm_split_viapdf.svg"))
+LocalResource("divergencethm_split_viapdf.svg")
 
 # ╔═╡ d9cdd761-bcb3-461a-b473-ab1e6493a80b
 md"""
@@ -1106,7 +1106,7 @@ As for the 1D elements, we define our shape functions on reference elements with
 """
 
 # ╔═╡ 32c1a2ed-ea2a-469b-936f-1a2b4b3eec90
-LocalResource(joinpath(@__DIR__, "refshapes_2d.svg"))
+LocalResource("refshapes_2d.svg")
 
 # ╔═╡ ef71b38b-ec86-41eb-86f2-ea8087038502
 begin
@@ -1326,7 +1326,7 @@ The final question for the numerical integration, is then how to modify the weig
 """
 
 # ╔═╡ e85161d4-4b28-47d4-a05e-a3c3e34415b5
-LocalResource(joinpath(@__DIR__, "numint_map_2d_viapdf.svg"))
+LocalResource("numint_map_2d_viapdf.svg")
 
 # ╔═╡ fdc596a9-bd9e-45bd-a082-0418bb5b5084
 md"""
@@ -1471,7 +1471,7 @@ To get started, let's remind ourselves about the facets on the reference element
 """
 
 # ╔═╡ 8cc38e33-13f2-47a9-8b33-66ce560fbb3b
-LocalResource(joinpath(@__DIR__, "refshapes_2d.svg"))
+LocalResource("refshapes_2d.svg")
 
 # ╔═╡ cad4715c-72ef-452c-bbf4-7bbd6149ef13
 md"""
@@ -1583,7 +1583,7 @@ q_\mathrm{right} = \int_{\Gamma_\mathrm{right}} q_\mathrm{n}\ \mathrm{d}\Gamma
 """
 
 # ╔═╡ c21b70de-f36d-4c91-9a29-8204bb0f8cc2
-LocalResource(joinpath(@__DIR__, "reaction_flux_corners.svg"))
+LocalResource("reaction_flux_corners.svg")
 
 # ╔═╡ a471df59-3c75-4cfa-8f19-8612b20c59b0
 md"""
@@ -1808,7 +1808,7 @@ The surface that we consider can be either a physical surface of a body, or we c
 """
 
 # ╔═╡ 4167e37d-b9e2-484f-935c-729e0507630b
-LocalResource(joinpath(@__DIR__, "traction_definition.svg"))
+LocalResource("traction_definition.svg")
 
 # ╔═╡ bebe6b31-f5f3-4719-b970-7f0583bc3674
 md"""
@@ -1817,7 +1817,7 @@ When using the traction on a specific plane to investigate the load inside a bod
 """
 
 # ╔═╡ 0d31dfd6-df4b-4d08-a099-c69c2f2cb071
-LocalResource(joinpath(@__DIR__, "traction_multiple_cuts.svg"))
+LocalResource("traction_multiple_cuts.svg")
 
 # ╔═╡ 9459013d-e12c-4a82-9636-5ce912cccaf3
 md"""
@@ -2108,7 +2108,7 @@ We consider a box with side lengths ``\Delta x_1 \rightarrow 0`` and ``\Delta x_
 """
 
 # ╔═╡ d7e7d8c5-0673-4c78-a484-4ee8116f1a76
-LocalResource(joinpath(@__DIR__, "stress_symmetry_viapdf.svg"))
+LocalResource("stress_symmetry_viapdf.svg")
 
 # ╔═╡ 7cec58dd-dd80-4ce5-b885-f1e2527e481d
 md"""
@@ -4653,7 +4653,7 @@ version = "4.1.0+0"
 """
 
 # ╔═╡ Cell order:
-# ╠═6b0414f5-13f1-4e68-944d-d29b18affaa3
+# ╟─6b0414f5-13f1-4e68-944d-d29b18affaa3
 # ╟─13c0d238-e1cc-473c-a41f-dfbb05622b0f
 # ╟─b92cd124-af25-11f0-b55d-45d572d7ae78
 # ╟─49a9b55e-16ad-4d80-ac5d-cbf18cf717d7
