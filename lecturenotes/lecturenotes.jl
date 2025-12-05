@@ -2269,7 +2269,7 @@ where ``\underline{M}_i(\underline{x})`` are *vector-valued* shape functions. We
 
 !!! note "Notation"
     The same symbol, ``N_i(\underline{x})`` and ``\underline{N}_i(\underline{x})``, 
-    is used for both scalar and vector-valued shape functions. Here we use
+    is often used for both scalar and vector-valued shape functions. Here we use
     ``N_i(\underline{x})`` and ``\underline{M}_i(\underline{x})`` to 
     clearly separate the two).
 
