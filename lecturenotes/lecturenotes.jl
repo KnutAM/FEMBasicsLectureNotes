@@ -2354,11 +2354,11 @@ The vector-valued shape functions, ``\underline{M}_i``, are defined based on our
 ```
 And consequently, we get the gradients of these as
 ```math
-\frac{\partial \underline{M}_{2i-1}}{\partial \underline{x}} = \begin{bmatrix} \frac{\partial N_i}{\partial x_1} & 0 \\ 
-\frac{\partial N_i}{\partial x_2} & 0 \end{bmatrix}, \quad 
+\frac{\partial \underline{M}_{2i-1}}{\partial \underline{x}} = \begin{bmatrix} \frac{\partial N_i}{\partial x_1} & \frac{\partial N_i}{\partial x_2} \\ 
+0 & 0 \end{bmatrix}, \quad 
 \frac{\partial \underline{M}_{2i}}{\partial \underline{x}} = \begin{bmatrix} 
-0 & \frac{\partial N_i}{\partial x_1} \\ 
-0 & \frac{\partial N_i}{\partial x_2} \end{bmatrix}
+0 & 0 \\ 
+\frac{\partial N_i}{\partial x_1} & \frac{\partial N_i}{\partial x_2} \end{bmatrix}
 ```
 And then using the definition of the ``\underline{B}_i`` vector, we get
 ```math
@@ -2443,7 +2443,7 @@ If we also want to prescribe the y displacements at the (possibly) different nod
 cdofs = [cdofs; 2 * dbc_y_nodes];
 ac = [ac; ones(length(dbc_y_nodes)) * uy_c];
 ```
-If we have further constraints (e.g. with different constrained values), we can add them by further extending the vector. By knowing the node number, we can even insert constrained values that depend on the coordinates, e.g. let's say that we want to prescribe that ``u_1(\underline{x}) = x_2/10`` on the boundary ``\Gamma_\mathrm{right}`` with nodes `left_nodes`, then we can add this as
+If we have further constraints (e.g. with different constrained values), we can add them by further extending the vector. By knowing the node number, we can even insert constrained values that depend on the coordinates, e.g. let's say that we want to prescribe that ``u_1(\underline{x}) = x_2/10`` on the boundary ``\Gamma_\mathrm{left}`` with nodes `left_nodes`, then we can add this as
 ```
 ux_left = node_coordinates(2, left_nodes);
 cdofs = [cdofs; 2 * left_nodes - 1];
