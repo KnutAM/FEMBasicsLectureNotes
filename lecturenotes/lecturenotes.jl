@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.20.20
+# v0.20.21
 
 using Markdown
 using InteractiveUtils
@@ -2308,6 +2308,19 @@ The gradient of the shape functions, ``\partial \underline{M}_i/\partial \underl
 ```
 """
 
+# ╔═╡ f77fb7ab-059f-4b6b-a0f9-cb55ccaeae28
+md"""
+!!! note "Notation"
+    Here we use the notation ``[\underline{M}_i]_j`` to denote the ``j``th 
+    component of the ``i``th shape function, ``\underline{M}_i``. 
+    So for a vector ``\underline{v}``, ``[\underline{v}]_j = v_j``, and
+    ```math
+    \underline{M}_i = \begin{bmatrix}
+        [\underline{M}_i]_1 \\ [\underline{M}_i]_2
+    \end{bmatrix}
+    ```
+"""
+
 # ╔═╡ f53dc83a-af49-4abc-90fc-4b5301987a0a
 md"""
 With these definitions, we see that we have (in 2d as an example)
@@ -3456,9 +3469,9 @@ version = "5.2.3+0"
 
 [[deps.Glib_jll]]
 deps = ["Artifacts", "GettextRuntime_jll", "JLLWrappers", "Libdl", "Libffi_jll", "Libiconv_jll", "Libmount_jll", "PCRE2_jll", "Zlib_jll"]
-git-tree-sha1 = "50c11ffab2a3d50192a228c313f05b5b5dc5acb2"
+git-tree-sha1 = "6b4d2dc81736fe3980ff0e8879a9fc7c33c44ddf"
 uuid = "7746bdde-850d-59dc-9ae8-88ece973131d"
-version = "2.86.0+0"
+version = "2.86.2+0"
 
 [[deps.Graphics]]
 deps = ["Colors", "LinearAlgebra", "NaNMath"]
@@ -4138,9 +4151,9 @@ version = "1.3.0"
 
 [[deps.QOI]]
 deps = ["ColorTypes", "FileIO", "FixedPointNumbers"]
-git-tree-sha1 = "8b3fc30bc0390abdce15f8822c889f669baed73d"
+git-tree-sha1 = "472daaa816895cb7aee81658d4e7aec901fa1106"
 uuid = "4b34888f-f399-49d4-9bb3-47ed5cae4e65"
-version = "1.0.1"
+version = "1.0.2"
 
 [[deps.QuadGK]]
 deps = ["DataStructures", "LinearAlgebra"]
@@ -4601,9 +4614,9 @@ version = "2.0.4+0"
 
 [[deps.libpng_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Zlib_jll"]
-git-tree-sha1 = "07b6a107d926093898e82b3b1db657ebe33134ec"
+git-tree-sha1 = "5cb3c5d039f880c0b3075803c8bf45cb95ae1e91"
 uuid = "b53b4c65-9356-5827-b1ea-8c7a1a84506f"
-version = "1.6.50+0"
+version = "1.6.51+0"
 
 [[deps.libsixel_jll]]
 deps = ["Artifacts", "JLLWrappers", "JpegTurbo_jll", "Libdl", "libpng_jll"]
@@ -4763,6 +4776,7 @@ version = "4.1.0+0"
 # ╟─e2f98607-c9a6-4a89-ba81-87b5a83cb789
 # ╟─5f0cf5a1-bd8c-4637-a28d-e4fd134254ab
 # ╟─976fbb59-1adf-4e95-84b8-75c7bf302917
+# ╟─f77fb7ab-059f-4b6b-a0f9-cb55ccaeae28
 # ╟─f53dc83a-af49-4abc-90fc-4b5301987a0a
 # ╟─cf0b8288-82b5-445a-aa27-76fbdeef35d8
 # ╟─72c42622-fa57-4020-aa51-77fd3bd9f79c
