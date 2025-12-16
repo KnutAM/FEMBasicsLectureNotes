@@ -2332,7 +2332,7 @@ With these definitions, we see that we have (in 2d as an example)
 ```
 Using the Voigt notation, we then get the Finite Element form,
 ```math
-\int_\Omega \underline{M}_i^\mathrm{T} \rho \underline{M}_j\ \mathrm{d}\Omega\ \ddot{a}_j + \int_\Omega \underline{B}_i^\mathrm{T} \underline{\sigma}\ \mathrm{d}\Omega = \int_\Gamma \underline{M}_i^\mathrm{T}\ \underline{t}\ \mathrm{d}\Gamma - \int_\Omega \underline{M}_i^\mathrm{T}\ \underline{b}\ \mathrm{d}\Omega
+\int_\Omega \underline{M}_i^\mathrm{T} \rho \underline{M}_j\ \mathrm{d}\Omega\ \ddot{a}_j + \int_\Omega \underline{B}_i^\mathrm{T} \underline{\sigma}\ \mathrm{d}\Omega = \int_\Gamma \underline{M}_i^\mathrm{T}\ \underline{t}\ \mathrm{d}\Gamma + \int_\Omega \underline{M}_i^\mathrm{T}\ \underline{b}\ \mathrm{d}\Omega
 ```
 Finally, we insert the constitutive relationship, Hooke's law, ``\underline{\sigma} = \underline{\underline{D}}\ \underline{\varepsilon}``, in combination with using that
 ```math
