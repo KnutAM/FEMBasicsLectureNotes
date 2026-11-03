@@ -350,7 +350,7 @@ The derivative, ``x'(\xi)``, is denoted the jacobian, ``J(\xi)``, and can be cal
 
 Equipped with this result, we can therefore **numerically integrate** a function, ``h(x)``, on the physical domain, ``x \in [a, b]``, by using the quadrature rule on the **reference domain**, ``\xi \in [-1, 1]``, as
 ```math
-    \int_a^b h(x)\ \mathrm{d}x = \int_{-1}^{1} h(x(\xi)) J(\xi)\ \mathrm{d}x \approx \sum_{q = 1}^{N_\mathrm{q}} h(x(\xi_q)) J(\xi_q) w_q
+    \int_a^b h(x)\ \mathrm{d}x = \int_{-1}^{1} h(x(\xi)) J(\xi)\ \mathrm{d}\xi \approx \sum_{q = 1}^{N_\mathrm{q}} h(x(\xi_q)) J(\xi_q) w_q
 ```
 where we use the previously introduced equation to calculate the spatial coordinate, ``x_q = x(\xi_q)``, and the jacobian, ``J(\xi_q)``, for each quadrature point, ``\xi_q``. Note that in many cases, such when evaluating shape functions and their gradients, the function ``h(x)`` may be directly expressed as a function of the reference coordinate, i.e. ``g(\xi) = h(x(\xi))`` and we can use ``g(\xi_q)`` directly without calculating ``x_q``. 
 """
@@ -579,7 +579,7 @@ Then, we consider the case when ``\Delta x`` goes to zero, i.e.
 ```math
 \dot{e}(x) = h(x) - \lim_{\Delta x \rightarrow 0} \left[\frac{q(x + \Delta x) - q(x)}{\Delta x}\right] = h(x) - \frac{\partial q}{\partial x}
 ```
-In Lecture 9 we will consider the *transient* heat flow, where ``\dot{e} \neq 0``, but for now we will only consider the stationary case, ``\dot{e} = 0``, which occurs after sufficiently long time has passed with constant loading. We then have the following Differential Equation,
+In Lecture 9 we will consider the *transient* heat flow, where ``\dot{e} \neq 0``, but for now we will only consider the stationary case, ``\dot{e} = 0``. Under constant loading and not fully insulated boundary conditions the transient solution will approach the stationary case after after sufficiently long time. We then have the following Differential Equation,
 ```math
 \frac{\partial q}{\partial x} = h(x)
 ```
@@ -591,7 +591,7 @@ q = -k \frac{\partial T}{\partial x}
 where ``k`` is a material parameter called the heat conductivity. 
 
 
-Since this is a partial differential equation, we will also need boundary conditions. For now, we will consider the two most common types
+Since this is a differential equation in space, we will also need boundary conditions. For now, we will consider the two most common types
 
 1) Dirichlet Boundary Conditions: We know the value of the primary field, in this case the temperature, ``T``, at the boundary
 2) Neumann Boundary Conditions: We know the value of the derivative of the primary field, in this case the heat flux, ``q``, out from the boundary.
@@ -922,7 +922,7 @@ If we consider the surface integral, we have
 + \int_{x_2}^{x_2 + \Delta x_2} q_1(x_1 + \Delta x_1, \tilde{x})\ \mathrm{d}\tilde{x} \\
 \end{align}
 ```
-For a continuous field, ``\underline{q}(\underline{x})``, and ``\Delta x_1`` and ``\Delta x_2`` small, we can use a single quadrature point to calculate the integrals (this can be shown by using e.g. a taylor series expansion), such that we get,
+For a sufficiently smooth field, ``\underline{q}(\underline{x})``, and ``\Delta x_1`` and ``\Delta x_2`` small, we can use a single quadrature point to calculate the integrals (this can be shown by using e.g. a taylor series expansion), such that we get,
 ```math
 \begin{align}
 \frac{1}{t}\int_{\Gamma} \underline{q} \cdot \underline{n}\ \mathrm{d}\Gamma 
@@ -1475,11 +1475,11 @@ LocalResource("refshapes_2d.svg")
 
 # ╔═╡ cad4715c-72ef-452c-bbf4-7bbd6149ef13
 md"""
-When we want to apply a Neumann BC, we will get a list of facets, these are described by a matrix where each column contains the global element number and the local facet number. By using the element number, we can get the coordinates of the current element, and by getting the local facet number, we know how to map the coordinates from a reference line [-1, 1] into the local coordinates in the reference element. For the triangle we have with ``s = [\xi^\mathrm{line} + 1]/2``,
+When we want to apply a Neumann BC, we will get a list of facets, these are described by a matrix where each column contains the global element number and the local facet number. By using the element number, we can get the coordinates of the current element, and by getting the local facet number, we know how to map the coordinates from a reference line [-1, 1] into the local coordinates in the reference element. We choose the facet direction positive as counter-clockwise. For the triangle, we then have with ``s = [\xi^\mathrm{line} + 1]/2``,
 ```math
 \underline{\xi}(\xi^\mathrm{line}) = \left\lbrace \begin{matrix}
 [1 - s,\ s]^\mathrm{T} & f = 1 \\
-[0,\ s]^\mathrm{T} & f = 2 \\
+[0,\ -s]^\mathrm{T} & f = 2 \\
 [s,\ 0]^\mathrm{T} & f = 3 \end{matrix} \right., \quad 
 
 ```
@@ -1513,8 +1513,8 @@ We would like to translate this into an integral over a reference line [-1, 1] u
 Using the mapping above, we arrive at the following derivatives,
 ```math
 \underbrace{\frac{\partial \underline{\xi}}{\partial \xi^\mathrm{line}} = \left\lbrace \begin{matrix}
-[-0.5,\ -0.5]^\mathrm{T} & f = 1 \\
-[\phantom{+}0.0,\ \phantom{+}0.5]^\mathrm{T} & f = 2 \\
+[-0.5,\ \phantom{+}0.5]^\mathrm{T} & f = 1 \\
+[\phantom{+}0.0,\ -0.5]^\mathrm{T} & f = 2 \\
 [\phantom{+}0.5,\ \phantom{+}0.0]^\mathrm{T} & f = 3 \end{matrix} \right.}_{\text{Reference Triangle}},
 \quad\quad
 \underbrace{\frac{\partial \underline{\xi}}{\partial \xi^\mathrm{line}}= \left\lbrace \begin{matrix}
@@ -1765,15 +1765,15 @@ M_{ij}\Bigg[ \frac{a_j(t_{n+1}) - a_j(t_n)}{t_{n+1} - t_n}\Bigg] + K_{ij} \Bigg[
 ```
 We then reorganize and multiply with ``\Delta t = t_{n+1} - t_n``, to obtain
 ```math
-\left[M_{ij} + \Delta t \theta K_{ij}\right] a_j(t_{n+1})  = f_i + [M_{ij}- \Delta t [1 - \theta] K_{ij}] a_j(t_n)
+\left[M_{ij} + \Delta t \theta K_{ij}\right] a_j(t_{n+1})  = \Delta t f_i + [M_{ij}- \Delta t [1 - \theta] K_{ij}] a_j(t_n)
 ```
 If we write this in matrix notation we have
 ```math
-\left[\underline{\underline{M}} + \Delta t \theta \underline{\underline{K}}\right] \underline{a}(t_{n+1})  = \underline{f} + \left[\underline{\underline{M}}- \Delta t [1 - \theta]\underline{\underline{K}}\right] \underline{a}(t_n)
+\left[\underline{\underline{M}} + \Delta t \theta \underline{\underline{K}}\right] \underline{a}(t_{n+1})  = \Delta t\underline{f} + \left[\underline{\underline{M}}- \Delta t [1 - \theta]\underline{\underline{K}}\right] \underline{a}(t_n)
 ```
 And we can solve for the unknowns at the next time step as
 ```math
-\underline{a}(t_{n+1}) = \left[\underline{\underline{M}} + \Delta t \theta \underline{\underline{K}}\right]^{-1}\left[ \underline{f} + \left[\underline{\underline{M}}- \Delta t [1 - \theta]\underline{\underline{K}}\right] \underline{a}(t_n)\right]
+\underline{a}(t_{n+1}) = \left[\underline{\underline{M}} + \Delta t \theta \underline{\underline{K}}\right]^{-1}\left[ \Delta t \underline{f} + \left[\underline{\underline{M}}- \Delta t [1 - \theta]\underline{\underline{K}}\right] \underline{a}(t_n)\right]
 ```
 Choosing ``\theta = 0`` results in a so-called fully explicit time integration (Forward Euler), which can be faster (since the matrix to be factorized is constant). However, this method requires small time steps to be stable, in general 
 ```math
@@ -2180,7 +2180,7 @@ The plane strain assumption holds if the out-of-plane motion is constrained, and
 
 !!! note "Out-of-plane stress components"
     When calculating the stress under plane strain, we get a 2d stress (3 components
-	in the Voigt format), which is enough for ensuring equilibrium. However, since ``\sigma_{ij} \neq 0`` for ``i = 3`` or ``j = 3``, we have to include those stress components when calculating effective stress measures. An easy way to obtain the full stress matrix, is using the stiffness tensor for 3d, and inserting zeros for the strain components that should be zero. 
+	in the Voigt format), which is enough for ensuring equilibrium. However, since ``\sigma_{ij} \neq 0`` for ``i = 3`` or ``j = 3``, we have to include those stress components when calculating effective stress measures. (For the isotropic resposne considered here, only ``\sigma_{33}`` can become nonzero, but in general also ``\sigma_{13}`` and ``\sigma_{23}``) An easy way to obtain the full stress matrix, is using the stiffness tensor for 3d, and inserting zeros for the strain components that should be zero.
 
 ### Plane stress
 "Plane stress" implies that we assume that ``\sigma_{ij} = 0`` if ``i = 3`` or ``j = 3``. In this case, the stiffness tensor in Voigt format becomes
@@ -2195,8 +2195,8 @@ The plane strain assumption holds if the out-of-plane motion is constrained, and
 The plane stress assumption holds if the out-of-plane motion is unconstrained, and the loading is uniform across the thickness. The typical example is when the thickness (out-of-plane dimension) is small, but there are cases when plane stress is a good assumption also for a large of out plane dimensions. Hence the key question to ask is if the out-of-plane motion of the analyzed cross-section is unconstrained. Note that for thin cross-sections, we may get a good approximation even if the loading is not uniform across the thickness direction. 
 
 !!! note "Out-of-plane strain components"
-    When calculating the stress under plane strain, we use 2d strain (3 components
-	in the Voigt format), which is enough for ensuring equilibrium. If we need to obtain the nonzero strain components for ``i = 3`` or ``j = 3``, we can use the the stiffness tensor for 3d, and inserting zeros for the stress components that should be zero, before calculating ``\underline{\varepsilon} = \underline{\underline{D}}^{-1} \underline{\sigma}``. 
+    When calculating the stress under plane stress, we use 2d strain (3 components
+	in the Voigt format), which is enough for ensuring equilibrium. If we need to obtain the nonzero strain components for ``i = 3`` or ``j = 3``, we can use the the stiffness tensor for 3d, and inserting zeros for the stress components that should be zero, before calculating ``\underline{\varepsilon} = \underline{\underline{D}}^{-1} \underline{\sigma}``.
 
 """
 
@@ -2210,8 +2210,10 @@ Using *linear elasticity* is an assumption, which gives a very good approximatio
 ```
 For metals, the value of ``\sigma_\mathrm{vM}`` can be compared to the yield limit, to see if it is valid to consider linear elasticity and if no permanent deformations will occur. What is special about the von Mises effective stress is that it does not depend on the so-called hydrostatic stress, i.e. ``\sigma_\mathrm{vM}(\underline{\underline{\sigma}}) = \sigma_\mathrm{vM}(\underline{\underline{\sigma}} - p \underline{\underline{I}})``, where ``p`` is the pressure. This is a good assumption for metals, but for granular materials, such as soil, gravel, and concrete, the **Drucker-Prager** criterion may be more suitable. It is defined as
 ```math
-\sigma_\mathrm{DP} = \sigma_\mathrm{vM} - B\underbrace{[\sigma_{11} + \sigma_{22} + \sigma_{33}]}_{-p}
+\sigma_\mathrm{DP} = \sigma_\mathrm{vM} - B\underbrace{[\sigma_{11} + \sigma_{22} + \sigma_{33}]}_{-3p}
 ```
+where ``B`` is a material parameter. 
+
 These are just some examples of different stress measures, and what to use really depends on the specific analysis to be made. While these are suitable for e.g. determining the maximum load on a structure, they are **not suitable** for analyzing fatigue. 
 """
 
@@ -2454,11 +2456,11 @@ ac = ones(length(dbc_x_nodes), 1) * ux_c;
 If we also want to prescribe the y displacements at the (possibly) different nodes `dbc_y_nodes` to `uy_c`, we can extend these vectors by
 ```
 cdofs = [cdofs; 2 * dbc_y_nodes];
-ac = [ac; ones(length(dbc_y_nodes)) * uy_c];
+ac = [ac; ones(length(dbc_y_nodes), 1) * uy_c];
 ```
 If we have further constraints (e.g. with different constrained values), we can add them by further extending the vector. By knowing the node number, we can even insert constrained values that depend on the coordinates, e.g. let's say that we want to prescribe that ``u_1(\underline{x}) = x_2/10`` on the boundary ``\Gamma_\mathrm{left}`` with nodes `left_nodes`, then we can add this as
 ```
-ux_left = node_coordinates(2, left_nodes);
+ux_left = node_coordinates(2, left_nodes)'/10;
 cdofs = [cdofs; 2 * left_nodes - 1];
 ac = [ac; ux_left]
 ```
@@ -2605,7 +2607,7 @@ So far, we have only discussed the standard boundary conditions,
 
 However, we can also have a mixed case. For thermal simulations, this corresponds to a heat transfer problem, where the boundary heat flux depends on the difference between the temperature in the structure and the surroundings, i.e. we have
 ```math
-q_\mathrm{n} = \alpha_c [T_\mathrm{s} - T(\underline{x})]
+q_\mathrm{n} = \alpha_c [T(\underline{x})-T_\mathrm{s}]
 ```
 where the heat convection coefficient, ``\alpha_c``, is a parameter that depends on the air flow (and thus if the interface is horizontal or vertial), ``T_\mathrm{s}`` is the known temperature of the surroundings, and ``T(\underline{x})`` is the temperature in the structure at the boundary. Starting from the FE form for the heat equation,
 ```math
@@ -2621,12 +2623,12 @@ we split the boundary terms into the Dirichlet, ``\Gamma_\mathrm{DBC}``, Neumann
 \int_\Omega N_i(\underline{x})\ h\ \mathrm{d}\Omega \\ 
 &- \int_{\Gamma_\mathrm{DBC}} N_i(\underline{x})\ q_\mathrm{n}^\mathrm{DBC}\ \mathrm{d}\Gamma
 - \int_{\Gamma_\mathrm{NBC}} N_i(\underline{x})\ q_\mathrm{n}^\mathrm{NBC}\ \mathrm{d}\Gamma
-- \int_{\Gamma_\mathrm{RBC}} N_i(\underline{x})\ \alpha_c[T_\mathrm{s} - T(\underline{x})]\ \mathrm{d}\Gamma
+- \int_{\Gamma_\mathrm{RBC}} N_i(\underline{x})\ \alpha_c [T(\underline{x})-T_\mathrm{s}]\ \mathrm{d}\Gamma
 \end{align}
 ```
 where ``q_\mathrm{n}^\mathrm{NBC}`` is known while ``q_\mathrm{n}^\mathrm{DBC}`` is unknown. If we insert the FE approximation in the Robin BC, we get
 ```math
-\int_{\Gamma_\mathrm{RBC}} N_i(\underline{x})\ \alpha_c[T_\mathrm{s} - T(\underline{x})]\ \mathrm{d}\Gamma = \int_{\Gamma_\mathrm{RBC}} N_i(\underline{x})\ \alpha_c T_\mathrm{s}\ \mathrm{d}\Gamma - \underbrace{\int_{\Gamma_\mathrm{RBC}} N_i(\underline{x})\ \alpha_c N_j(\underline{x})\ \mathrm{d}\Gamma}_{K_{ij}^c}\ a_j
+\int_{\Gamma_\mathrm{RBC}} N_i(\underline{x})\ \alpha_c [T(\underline{x})-T_\mathrm{s}]\ \mathrm{d}\Gamma = \underbrace{\int_{\Gamma_\mathrm{RBC}} N_i(\underline{x})\ \alpha_c N_j(\underline{x})\ \mathrm{d}\Gamma}_{K_{ij}^c}\ a_j - \int_{\Gamma_\mathrm{RBC}} N_i(\underline{x})\ \alpha_c T_\mathrm{s}\ \mathrm{d}\Gamma
 ```
 and we notice that we get another contribution to the stiffness matrix, ``K_{ij}^c``. If we put all of this together in the complete FE form, we now have
 ```math
@@ -2635,7 +2637,7 @@ and we notice that we get another contribution to the stiffness matrix, ``K_{ij}
 + \int_{\Gamma_\mathrm{RBC}} N_i(\underline{x})\ \alpha_c N_j(\underline{x})\ \mathrm{d}\Gamma}_{K_{ij} + K_{ij}^c}\ a_j \\ 
 &= \int_\Omega N_i(\underline{x})\ h\ \mathrm{d}\Omega - \int_{\Gamma_\mathrm{DBC}} N_i(\underline{x})\ q_\mathrm{n}^\mathrm{DBC}\ \mathrm{d}\Gamma
 - \int_{\Gamma_\mathrm{NBC}} N_i(\underline{x})\ q_\mathrm{n}^\mathrm{NBC}\ \mathrm{d}\Gamma
-- \int_{\Gamma_\mathrm{RBC}} N_i(\underline{x})\ \alpha_c\ T_\mathrm{s}\ \mathrm{d}\Gamma
++ \int_{\Gamma_\mathrm{RBC}} N_i(\underline{x})\ \alpha_c\ T_\mathrm{s}\ \mathrm{d}\Gamma
 \end{align}
 ```
 
