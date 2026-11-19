@@ -1478,18 +1478,18 @@ md"""
 When we want to apply a Neumann BC, we will get a list of facets, these are described by a matrix where each column contains the global element number and the local facet number. By using the element number, we can get the coordinates of the current element, and by getting the local facet number, we know how to map the coordinates from a reference line [-1, 1] into the local coordinates in the reference element. We choose the facet direction positive as counter-clockwise. For the triangle, we then have with ``s = [\xi^\mathrm{line} + 1]/2``,
 ```math
 \underline{\xi}(\xi^\mathrm{line}) = \left\lbrace \begin{matrix}
-[1 - s,\ s]^\mathrm{T} & f = 1 \\
-[0,\ -s]^\mathrm{T} & f = 2 \\
-[s,\ 0]^\mathrm{T} & f = 3 \end{matrix} \right., \quad 
+[& 1 - s &,& s &]^\mathrm{T} & f = 1 \\
+[& 0 &,& 1-s &]^\mathrm{T} & f = 2 \\
+[& s &,& 0 &]^\mathrm{T} & f = 3 \end{matrix} \right., \quad 
 
 ```
 and for the quadrilateral, with ``s = \xi^\mathrm{line}``,
 ```math
 \underline{\xi}(\xi^\mathrm{line}) = \left\lbrace \begin{matrix}
-[\phantom{+}s,\ -1]^\mathrm{T} & f = 1 \\
-[\phantom{+}1,\ \phantom{+}s]^\mathrm{T} & f = 2 \\
-[-s,\ \phantom{+}1]^\mathrm{T} & f = 3 \\
-[-1,\ -s]^\mathrm{T} & f = 4 \\
+[& s &,& -1 &]^\mathrm{T} & f = 1 \\
+[& 1 &,& s &]^\mathrm{T} & f = 2 \\
+[& -s &,& 1 &]^\mathrm{T} & f = 3 \\
+[& -1 &,& -s &]^\mathrm{T} & f = 4 \\
 \end{matrix} \right.
 ```
 
