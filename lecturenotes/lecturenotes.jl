@@ -1782,14 +1782,6 @@ Choosing ``\theta = 0`` results in a so-called fully explicit time integration (
 is a stable time step. Choosing ``\theta \geq 0.5`` is unconditionally stable. Often, the fully implicit ``\theta = 1`` is chosen. This is called Backward Euler.
 """
 
-# ╔═╡ 509c3307-b814-4da9-aecc-7adb47f8ec95
-md"""
-## L10: Introduction to Abaqus
-See notes on Canvas
-## L11: Guest lectures
-See presentations uploaded on Canvas
-"""
-
 # ╔═╡ 1f5672bc-28af-4ab7-b159-197ebf1e12a3
 md"""
 ### Cauchy's theorem
@@ -2139,7 +2131,7 @@ Showing that the stress (in 2D) is symmetric. The same results follows by doing 
 
 # ╔═╡ f13237a3-1bf4-4ec9-a797-20458df04e52
 md"""
-## L12b: Linear elasticity
+## L10b: Linear elasticity
 Hooke's law using the stiffness tensor, ``\underline{\underline{D}}``, in Voigt notation
 ```math
 \underline{\sigma} = \underline{\underline{D}}\ \underline{\varepsilon}
@@ -2217,9 +2209,15 @@ where ``B`` is a material parameter.
 These are just some examples of different stress measures, and what to use really depends on the specific analysis to be made. While these are suitable for e.g. determining the maximum load on a structure, they are **not suitable** for analyzing fatigue. 
 """
 
+# ╔═╡ 509c3307-b814-4da9-aecc-7adb47f8ec95
+md"""
+## L11: Introduction to Abaqus
+See notes on Canvas
+"""
+
 # ╔═╡ 5f0cf5a1-bd8c-4637-a28d-e4fd134254ab
 md"""
-## L13: Weak form of the mechanical equilibrium
+## L12: Weak form of the mechanical equilibrium
 ```math
 \int_\Omega \delta u_j\ \frac{\partial \sigma_{ij}}{\partial x_i}\ \mathrm{d}\Omega + \int_\Omega \delta u_j\ b_j\ \mathrm{d}\Omega = \int_\Omega \delta u_j\ \rho \ddot{u}_j\ \mathrm{d}\Omega
 ```
@@ -2259,7 +2257,7 @@ We can then write the weak form as, using that ``\sigma_{ij} = \sigma_{ji}``,
 
 # ╔═╡ 976fbb59-1adf-4e95-84b8-75c7bf302917
 md"""
-## L14: Finite element analysis of linear elasticity
+## L13: Finite element analysis of linear elasticity
 We now introduce the approximations,
 ```math
 \begin{align}
@@ -2520,6 +2518,12 @@ such that we can calculate this for the quadrature point ``\underline{\xi}_q`` (
 ```math
 \underline{\sigma} = \underline{\underline D}\ \underline{\varepsilon}
 ```
+"""
+
+# ╔═╡ 8a3929bc-798f-4c16-bb6c-9b42d8255d38
+md"""
+## L14: Industry guest lecture
+See presentations uploaded on Canvas
 """
 
 # ╔═╡ 33b6a299-29cc-44bf-9e9e-cba48d0b427d
@@ -2906,7 +2910,7 @@ begin
 	mech_showcase_load_slider = @bind mech_showcase_load Slider(-0.5:0.1:0.5; default = 0, show_value = true)
 	
 	md"""
-	## L12a: Mechanical equilibrium
+	## L10a: Mechanical equilibrium
 	So far, we have considered only the heat equation, now we will apply the same theory to mechanical equilibrium. To do so, we start by defining the stress according to *Cauchy's stress theorem* before determining the force and torque equilibrium conditions. In the 2nd half, L12b, we introduce linear elasticity for both 3d and 2d cases.
 	
 	But first, let's look at the result of a mechanical simulation with linear elasticity, and you can explore how the boundary conditions affect the effective (von Mises) stress response:
@@ -4976,7 +4980,6 @@ uuid = "c59a0a09-053a-4810-b6d5-76bd653ef6cd"
 # ╟─55570b97-a717-4a7c-89c4-a2ae941a8e32
 # ╟─af3043ce-2863-44d1-8e7e-db5465651c52
 # ╟─ef099aa1-dd65-468e-af83-632ef4e0b535
-# ╟─509c3307-b814-4da9-aecc-7adb47f8ec95
 # ╟─cd3d341f-8517-44f9-add8-d844f2e5735a
 # ╟─ef6fe929-9305-4a9a-84c4-cfbd601a91c4
 # ╟─1f5672bc-28af-4ab7-b159-197ebf1e12a3
@@ -4995,8 +4998,9 @@ uuid = "c59a0a09-053a-4810-b6d5-76bd653ef6cd"
 # ╟─20f8718e-60ea-415b-aab3-17a90c7f31c6
 # ╟─d7e7d8c5-0673-4c78-a484-4ee8116f1a76
 # ╟─7cec58dd-dd80-4ce5-b885-f1e2527e481d
-# ╟─f13237a3-1bf4-4ec9-a797-20458df04e52
+# ╠═f13237a3-1bf4-4ec9-a797-20458df04e52
 # ╟─e2f98607-c9a6-4a89-ba81-87b5a83cb789
+# ╠═509c3307-b814-4da9-aecc-7adb47f8ec95
 # ╟─5f0cf5a1-bd8c-4637-a28d-e4fd134254ab
 # ╟─976fbb59-1adf-4e95-84b8-75c7bf302917
 # ╟─f77fb7ab-059f-4b6b-a0f9-cb55ccaeae28
@@ -5006,6 +5010,7 @@ uuid = "c59a0a09-053a-4810-b6d5-76bd653ef6cd"
 # ╟─15b6bf2a-88a4-4782-9087-349a5e47f75b
 # ╟─23d40f9d-c661-4551-90a9-e815f9edfca6
 # ╟─c144eb46-727a-428c-b2a1-f7ce63f2be7a
+# ╟─8a3929bc-798f-4c16-bb6c-9b42d8255d38
 # ╟─f61e8d2d-1842-4ba8-aff8-01f6b9ad9025
 # ╟─33b6a299-29cc-44bf-9e9e-cba48d0b427d
 # ╟─85374012-787e-4ac2-8a20-cf584eb232bc
