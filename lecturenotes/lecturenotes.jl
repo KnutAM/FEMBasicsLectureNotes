@@ -2500,6 +2500,12 @@ If **both** geometry and load is symmetric, we can apply symmetry boundary condi
 To apply symmetry (or other Dirichlet) boundary conditions in different coordinate systems, we have to use so-called Affine constraints, which creates a coupling between degree's of freedom, but doing this in `MATLAB` is out of scope for this course. However, in the `Abaqus` implementation, you will use a local coordinate system to apply symmetry conditions on a slanted face. 
 """
 
+# ╔═╡ 8a3929bc-798f-4c16-bb6c-9b42d8255d38
+md"""
+## L14: Industry guest lecture
+See presentations uploaded on Canvas
+"""
+
 # ╔═╡ f61e8d2d-1842-4ba8-aff8-01f6b9ad9025
 md"""
 ## L15a: Postprocessing
@@ -2518,12 +2524,6 @@ such that we can calculate this for the quadrature point ``\underline{\xi}_q`` (
 ```math
 \underline{\sigma} = \underline{\underline D}\ \underline{\varepsilon}
 ```
-"""
-
-# ╔═╡ 8a3929bc-798f-4c16-bb6c-9b42d8255d38
-md"""
-## L14: Industry guest lecture
-See presentations uploaded on Canvas
 """
 
 # ╔═╡ 33b6a299-29cc-44bf-9e9e-cba48d0b427d
@@ -4998,7 +4998,7 @@ uuid = "c59a0a09-053a-4810-b6d5-76bd653ef6cd"
 # ╟─20f8718e-60ea-415b-aab3-17a90c7f31c6
 # ╟─d7e7d8c5-0673-4c78-a484-4ee8116f1a76
 # ╟─7cec58dd-dd80-4ce5-b885-f1e2527e481d
-# ╠═f13237a3-1bf4-4ec9-a797-20458df04e52
+# ╟─f13237a3-1bf4-4ec9-a797-20458df04e52
 # ╟─e2f98607-c9a6-4a89-ba81-87b5a83cb789
 # ╠═509c3307-b814-4da9-aecc-7adb47f8ec95
 # ╟─5f0cf5a1-bd8c-4637-a28d-e4fd134254ab
